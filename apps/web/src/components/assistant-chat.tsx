@@ -11,7 +11,10 @@ export function AssistantChat({ csrf, inline = false }: { csrf: string; inline?:
   const [busy, setBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [msgs, open]);
+  useEffect(() => {
+    // Block body: newer browsers return a Promise from scrollIntoView, which React would treat as a cleanup.
+    end.current?.scrollIntoView({ block: 'end' });
+  }, [msgs, open]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
