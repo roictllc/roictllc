@@ -1,5 +1,22 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "noEmit": true },
-  "include": ["packages/*/src/**/*.ts", "packages/*/scripts/**/*.ts", "packages/*/seed/**/*.ts", "apps/worker/src/**/*.ts", "tests/**/*.ts"]
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@/*": [
+        "./apps/web/src/*"
+      ],
+      "server-only": [
+        "./tests/stubs/empty.ts"
+      ]
+    },
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/scripts/**/*.ts",
+    "packages/*/seed/**/*.ts",
+    "apps/worker/src/**/*.ts",
+    "tests/**/*.ts"
+  ]
 }

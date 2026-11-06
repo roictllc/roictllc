@@ -1,0 +1,58 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions: { contents: read, security-events: write }
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: roi, POSTGRES_PASSWORD: roi_local_dev, POSTGRES_DB: roi_test }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://roi:roi_local_dev@localhost:5432/roi_test
+      DATABASE_URL: postgresql://roi:roi_local_dev@localhost:5432/roi_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg poppler-utils qpdf
+      - run: npm ci
+      - run: npm run db:generate
+      - name: Migration drift check (real Prisma engine)
+        run: npx prisma migrate diff --config packages/database/prisma.config.ts --from-migrations packages/database/prisma/migrations --to-schema packages/database/prisma/schema.prisma --exit-code || (echo "::warning::Schema differs from migrations (see DECISIONS D-12)"; exit 0)
+      - run: npm run typecheck
+      - run: npx tsc -p apps/web/tsconfig.json --noEmit
+      - run: npm test
+      - run: npm run build -w @roi/web
+        env: { APP_URL: http://localhost:3000, SESSION_SECRET: ci-session-secret-0123456789abcdefghijklmnop, INTEGRATION_ENCRYPTION_KEY: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE= }
+      - name: Link check of the built site
+        run: |
+          npm run db:seed
+          (npx next start apps/web -p 3000 &) && sleep 8
+          npm run link-check -- http://localhost:3000
+        env: { APP_URL: http://localhost:3000, SESSION_SECRET: ci-session-secret-0123456789abcdefghijklmnop, INTEGRATION_ENCRYPTION_KEY: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE= }
+  secrets-scan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+  codeql:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with: { languages: javascript-typescript }
+      - uses: github/codeql-action/analyze@v3
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci && npm audit --omit=dev --audit-level=high

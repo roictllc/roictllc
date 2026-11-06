@@ -194,7 +194,7 @@ export async function seed(opts: { log?: (s: string) => void } = {}) {
     const adminExists = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
     const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
     if (!adminExists && email) {
-      const passwordHash = process.env.SEED_ADMIN_PASSWORD_HASH || (process.env.SEED_ADMIN_PASSWORD ? await hashPassword(process.env.SEED_ADMIN_PASSWORD) : '');
+      const passwordHash = process.env.SEED_ADMIN_PASSWORD_HASH_B64 ? Buffer.from(process.env.SEED_ADMIN_PASSWORD_HASH_B64, 'base64').toString('utf8') : process.env.SEED_ADMIN_PASSWORD_HASH || (process.env.SEED_ADMIN_PASSWORD ? await hashPassword(process.env.SEED_ADMIN_PASSWORD) : '');
       if (!passwordHash.startsWith('$argon2id$')) throw new Error('SEED_ADMIN_PASSWORD_HASH must be an argon2id hash (or set SEED_ADMIN_PASSWORD)');
       const admin = await prisma.user.create({ data: { email, name: 'ROI Admin', passwordHash, role: 'ADMIN', emailVerifiedAt: new Date(), mustChangePassword: true } });
       await prisma.auditLog.create({ data: { actorId: null, actorRole: 'SYSTEM', action: 'admin.seeded', targetType: 'User', targetId: admin.id, data: { email } } });
