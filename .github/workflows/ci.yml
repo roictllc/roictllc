@@ -17,7 +17,7 @@ jobs:
       DATABASE_URL: postgresql://roi:roi_local_dev@localhost:5432/roi_test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm }
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg poppler-utils qpdf
       - run: npm ci
@@ -53,6 +53,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - run: npm ci && npm audit --omit=dev --audit-level=high
