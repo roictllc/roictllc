@@ -1,0 +1,2726 @@
+// ROI LLC — PostgreSQL schema (spec v4 §5). Money = integer cents (+ currency); small API costs in millicents (1/1000 cent).
+// All DateTime columns are timestamptz(3) (enforced by packages/database/scripts/check-schema.ts).
+// Tables are snake_case via @@map. Customer-owned rows carry workspaceId.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+enum RoleName {
+  ADMIN
+  PM
+  MANAGER
+  CUSTOMER
+  AFFILIATE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum Visibility {
+  HIDDEN
+  COMING_SOON
+  LIVE
+}
+
+enum ProductKind {
+  ONE_TIME
+  SUBSCRIPTION
+  QUOTE
+  PER_ITEM
+}
+
+enum DeliveryMode {
+  AUTOMATED
+  MANAGED
+  HYBRID
+}
+
+enum PriceInterval {
+  ONE_TIME
+  MONTH
+  YEAR
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  UNPAID
+  CANCELED
+  INCOMPLETE
+  SUSPENDED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  WAITING_FOR_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELED
+  DEAD
+}
+
+enum ScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  REJECTED
+}
+
+enum LedgerType {
+  REVENUE
+  REFUND
+  FEE
+  EXPENSE
+  COMMISSION
+  PAYOUT
+  TAX
+}
+
+enum ExpenseCategory {
+  HOSTING
+  DOMAINS
+  SOFTWARE
+  ADVERTISING
+  SUPPORT
+  STORAGE
+  EMAIL
+  AI_COMPUTE
+  SOCIAL_API
+  AFFILIATE
+  OTHER
+}
+
+enum IntegrationStatus {
+  AWAITING_CONFIGURATION
+  CONNECTED
+  ERROR
+  DISABLED
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  INSTAGRAM
+  TIKTOK
+  X
+}
+
+enum PostingMode {
+  APPROVE_FIRST
+  AUTO_PUBLISH
+  MANAGER_REVIEW
+}
+
+enum SocialPostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_CUSTOMER
+  ESCALATED
+  RESOLVED
+  CLOSED
+}
+
+enum WebsiteStatus {
+  DRAFT
+  PREVIEW
+  PUBLISHING
+  LIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum DomainStatus {
+  QUOTED
+  PENDING_PAYMENT
+  REGISTERING
+  ACTIVE
+  EXPIRED
+  TRANSFERRED_OUT
+  EXTERNAL
+}
+
+enum SubscriberStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+}
+
+enum CommissionStatus {
+  PENDING
+  PAYABLE
+  PAID
+  CLAWED_BACK
+}
+
+enum DataSource {
+  MEASURED
+  ESTIMATED
+}
+
+// ───────────────────────────── Identity ─────────────────────────────
+model User {
+  id                 String     @id @default(cuid())
+  email              String     @unique
+  name               String?
+  passwordHash       String
+  role               RoleName   @default(CUSTOMER)
+  status             UserStatus @default(ACTIVE)
+  emailVerifiedAt    DateTime?  @db.Timestamptz(3)
+  mustChangePassword Boolean    @default(false)
+  twoFactorEnabled   Boolean    @default(false)
+  lastLoginAt        DateTime?  @db.Timestamptz(3)
+  archivedAt         DateTime?  @db.Timestamptz(3)
+  createdAt          DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
+
+  sessions            UserSession[]
+  passwordResets      PasswordResetToken[]
+  emailVerifications  EmailVerificationToken[]
+  twoFactorSecret     TwoFactorSecret?
+  recoveryCodes       RecoveryCode[]
+  customer            Customer?
+  managerProfile      ManagerProfile?
+  managerAssignments  ManagerAssignment[]
+  affiliateProfile    AffiliateProfile?
+  impersonationGrants ImpersonationGrant[]
+  notifications       Notification[]
+  orders              Order[]
+  ownedWorkspaces     BusinessWorkspace[]      @relation("WorkspaceOwner")
+
+  @@index([role])
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Role {
+  name        RoleName         @id
+  description String
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@map("roles")
+}
+
+model Permission {
+  key         String           @id
+  description String
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleName      RoleName
+  permissionKey String
+  role          Role       @relation(fields: [roleName], references: [name], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@id([roleName, permissionKey])
+  @@index([permissionKey])
+  @@map("role_permissions")
+}
+
+model UserSession {
+  id                  String    @id @default(cuid())
+  tokenHash           String    @unique
+  familyId            String
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip                  String?
+  userAgent           String?
+  twoFactorVerifiedAt DateTime? @db.Timestamptz(3)
+  lastSeenAt          DateTime  @default(now()) @db.Timestamptz(3)
+  idleExpiresAt       DateTime  @db.Timestamptz(3)
+  expiresAt           DateTime  @db.Timestamptz(3)
+  revokedAt           DateTime? @db.Timestamptz(3)
+  revokedReason       String?
+  rotatedToId         String?
+  impersonatorId      String?
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@map("user_sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("email_verification_tokens")
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+  @@index([createdAt])
+  @@map("login_attempts")
+}
+
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([windowStart])
+  @@map("rate_limit_buckets")
+}
+
+model TwoFactorSecret {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secretEncrypted String
+  enabledAt       DateTime? @db.Timestamptz(3)
+  lastUsedStep    Int?
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("two_factor_secrets")
+}
+
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@map("recovery_codes")
+}
+
+model ImpersonationGrant {
+  id          String            @id @default(cuid())
+  adminId     String
+  admin       User              @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  workspaceId String
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  reason      String
+  expiresAt   DateTime          @db.Timestamptz(3)
+  endedAt     DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([adminId])
+  @@index([workspaceId])
+  @@index([createdAt])
+  @@map("impersonation_grants")
+}
+
+// ───────────────────────────── Workspace ─────────────────────────────
+model BusinessWorkspace {
+  id               String    @id @default(cuid())
+  name             String
+  slug             String    @unique
+  ownerId          String
+  owner            User      @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  stripeCustomerId String?   @unique
+  status           String    @default("ACTIVE")
+  archivedAt       DateTime? @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
+
+  customers           Customer[]
+  profile             BusinessProfile?
+  managerAssignments  ManagerAssignment[]
+  projects            CustomerProject[]
+  assets              CustomerAsset[]
+  orders              Order[]
+  subscriptions       Subscription[]
+  invoices            Invoice[]
+  deliverables        GeneratedDeliverable[]
+  websites            Website[]
+  domains             Domain[]
+  socialAccounts      SocialAccount[]
+  socialPosts         SocialPost[]
+  brandKit            BrandKit?
+  tickets             SupportTicket[]
+  aiConnections       ClientAiConnection[]
+  impersonationGrants ImpersonationGrant[]
+  jobs                AutomationJob[]
+  logoConcepts        LogoConcept[]
+  ebookPurchases      EBookPurchase[]
+  signatureSets       SignatureSet[]
+  seoAudits           SeoAudit[]
+  aiVisibilityAudits  AiVisibilityAudit[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("business_workspaces")
+}
+
+model Customer {
+  id          String            @id @default(cuid())
+  userId      String            @unique
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  phone       String?
+  marketingOk Boolean           @default(false)
+  archivedAt  DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([createdAt])
+  @@map("customers")
+}
+
+model BusinessProfile {
+  id           String            @id @default(cuid())
+  workspaceId  String            @unique
+  workspace    BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  displayName  String
+  legalName    String?
+  logoAssetId  String?
+  industry     String?
+  description  String?
+  colors       Json?
+  phone        String?
+  email        String?
+  website      String?
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String            @default("US")
+  serviceAreas Json?
+  hours        Json?
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@map("business_profiles")
+}
+
+model ManagerProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  capacity  Int      @default(25)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("manager_profiles")
+}
+
+model ManagerAssignment {
+  id          String            @id @default(cuid())
+  managerId   String
+  manager     User              @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@unique([managerId, workspaceId])
+  @@index([workspaceId])
+  @@map("manager_assignments")
+}
+
+model CustomerProject {
+  id          String            @id @default(cuid())
+  workspaceId String
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  status      String            @default("OPEN")
+  productSlug String?
+  notes       String?
+  archivedAt  DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("customer_projects")
+}
+
+model CustomerAsset {
+  id           String            @id @default(cuid())
+  workspaceId  String
+  workspace    BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kind         String
+  storageKey   String            @unique
+  mime         String
+  sizeBytes    Int
+  sha256       String
+  width        Int?
+  height       Int?
+  originalName String?
+  scanStatus   ScanStatus        @default(PENDING)
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
+
+  logoUploads LogoUpload[]
+
+  @@index([workspaceId])
+  @@index([scanStatus])
+  @@index([sha256])
+  @@index([createdAt])
+  @@map("customer_assets")
+}
+
+// ───────────────────────────── Catalog ─────────────────────────────
+model ProductCategory {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  sortOrder Int       @default(0)
+  products  Product[]
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("product_categories")
+}
+
+model Product {
+  id                   String          @id @default(cuid())
+  number               Int             @unique
+  slug                 String          @unique
+  name                 String
+  tagline              String
+  shortDescription     String
+  longDescription      String
+  answerFirst          String
+  categoryId           String
+  category             ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  kind                 ProductKind
+  deliveryMode         DeliveryMode
+  visibility           Visibility      @default(HIDDEN)
+  requiredIntegrations String[]
+  faq                  Json
+  honesty              String?
+  taxCode              String?
+  seoTitle             String
+  seoDescription       String
+  sortOrder            Int             @default(0)
+  archivedAt           DateTime?       @db.Timestamptz(3)
+  createdAt            DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime        @updatedAt @db.Timestamptz(3)
+
+  plans        ProductPlan[]
+  features     ProductFeature[]
+  form         ProductForm?
+  workflow     ProductWorkflow?
+  costModel    ProductCostModel?
+  orderItems   OrderItem[]
+  revenue      RevenueEntry[]
+  productCosts ProductionCost[]
+  coupons      Coupon[]
+
+  @@index([categoryId])
+  @@index([visibility])
+  @@index([createdAt])
+  @@map("products")
+}
+
+model ProductPlan {
+  id          String           @id @default(cuid())
+  productId   String
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  slug        String
+  name        String
+  description String?
+  isDefault   Boolean          @default(false)
+  published   Boolean          @default(true)
+  sortOrder   Int              @default(0)
+  archivedAt  DateTime?        @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  prices      ProductPrice[]
+  features    ProductFeature[]
+  orderItems  OrderItem[]
+
+  @@unique([productId, slug])
+  @@index([productId])
+  @@map("product_plans")
+}
+
+model ProductPrice {
+  id            String        @id @default(cuid())
+  planId        String
+  plan          ProductPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  version       Int
+  amountCents   Int
+  currency      String        @default("usd")
+  interval      PriceInterval
+  stripePriceId String?       @unique
+  activeFrom    DateTime      @default(now()) @db.Timestamptz(3)
+  activeTo      DateTime?     @db.Timestamptz(3)
+  createdById   String?
+  reason        String?
+  marginBps     Int?
+  overrideNote  String?
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+
+  orderItems    OrderItem[]
+  subscriptions Subscription[]
+
+  @@unique([planId, version])
+  @@index([planId])
+  @@index([activeFrom])
+  @@map("product_prices")
+}
+
+model ProductFeature {
+  id        String       @id @default(cuid())
+  productId String
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  planId    String?
+  plan      ProductPlan? @relation(fields: [planId], references: [id], onDelete: Cascade)
+  text      String
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([productId])
+  @@index([planId])
+  @@map("product_features")
+}
+
+model ProductForm {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  version   Int      @default(1)
+  schema    Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("product_forms")
+}
+
+model ProductInput {
+  id          String    @id @default(cuid())
+  orderItemId String    @unique
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  formVersion Int
+  data        Json
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("product_inputs")
+}
+
+model ProductWorkflow {
+  id        String   @id @default(cuid())
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  steps     Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("product_workflows")
+}
+
+model ProductCostModel {
+  id                         String   @id @default(cuid())
+  productId                  String   @unique
+  product                    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  feePercentBps              Int      @default(290)
+  feeFixedCents              Int      @default(30)
+  computeSecondsExpected     Int      @default(0)
+  computeRateMillicentsPerS  Int      @default(1)
+  storageMillicents          Int      @default(0)
+  emailMillicents            Int      @default(0)
+  domainCostCents            Int      @default(0)
+  socialApiMillicentsPerPost Int      @default(0)
+  postsPerPeriod             Int      @default(0)
+  supportAllowanceCents      Int      @default(0)
+  refundAllowanceBps         Int      @default(0)
+  minMarginBps               Int      @default(4000)
+  notes                      String?
+  createdAt                  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("product_cost_models")
+}
+
+model Coupon {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  percentOffBps  Int?
+  amountOffCents Int?
+  productId      String?
+  product        Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  maxRedemptions Int?
+  redeemedCount  Int       @default(0)
+  expiresAt      DateTime? @db.Timestamptz(3)
+  active         Boolean   @default(true)
+  stripeCouponId String?   @unique
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  orders         Order[]
+
+  @@index([productId])
+  @@map("coupons")
+}
+
+model Bundle {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String?
+  planIds     String[]
+  amountCents Int
+  interval    PriceInterval
+  published   Boolean       @default(false)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@map("bundles")
+}
+
+// ───────────────────────────── Commerce ─────────────────────────────
+model Cart {
+  id          String     @id @default(cuid())
+  userId      String?
+  workspaceId String?
+  status      String     @default("OPEN")
+  items       CartItem[]
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  planId    String
+  quantity  Int      @default(1)
+  inputs    Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([cartId])
+  @@index([planId])
+  @@map("cart_items")
+}
+
+model Order {
+  id                       String            @id @default(cuid())
+  orderNumber              String            @unique
+  workspaceId              String
+  workspace                BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  userId                   String
+  user                     User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status                   OrderStatus       @default(PENDING_PAYMENT)
+  subtotalCents            Int
+  discountCents            Int               @default(0)
+  taxCents                 Int               @default(0)
+  totalCents               Int
+  currency                 String            @default("usd")
+  couponId                 String?
+  coupon                   Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  referralId               String?
+  stripeCheckoutSessionId  String?           @unique
+  stripePaymentIntentId    String?           @unique
+  consentImmediateDelivery Boolean           @default(false)
+  consentText              String?
+  consentAt                DateTime?         @db.Timestamptz(3)
+  paidAt                   DateTime?         @db.Timestamptz(3)
+  createdAt                DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime          @updatedAt @db.Timestamptz(3)
+
+  items      OrderItem[]
+  payments   Payment[]
+  taxRecords TaxRecord[]
+  ledger     FinancialTransaction[]
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([couponId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String       @id @default(cuid())
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  planId          String
+  plan            ProductPlan  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  priceId         String
+  price           ProductPrice @relation(fields: [priceId], references: [id], onDelete: Restrict)
+  quantity        Int          @default(1)
+  unitAmountCents Int
+  status          JobStatus    @default(PENDING)
+  idempotencyKey  String       @unique
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @db.Timestamptz(3)
+
+  input        ProductInput?
+  jobs         AutomationJob[]
+  deliverables GeneratedDeliverable[]
+  revenue      RevenueEntry[]
+  costs        ProductionCost[]
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([planId])
+  @@index([priceId])
+  @@index([status])
+  @@map("order_items")
+}
+
+model Payment {
+  id                    String       @id @default(cuid())
+  orderId               String?
+  order                 Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoiceId             String?
+  invoice               Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  stripePaymentIntentId String?      @unique
+  stripeChargeId        String?      @unique
+  amountCents           Int
+  currency              String       @default("usd")
+  status                String
+  paidAt                DateTime?    @db.Timestamptz(3)
+  createdAt             DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime     @updatedAt @db.Timestamptz(3)
+  fees                  PaymentFee[]
+  refunds               Refund[]
+
+  @@index([orderId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model PaymentFee {
+  id                 String   @id @default(cuid())
+  paymentId          String
+  payment            Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  stripeBalanceTxnId String   @unique
+  feeCents           Int
+  netCents           Int
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([paymentId])
+  @@map("payment_fees")
+}
+
+model Refund {
+  id             String   @id @default(cuid())
+  paymentId      String
+  payment        Payment  @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  stripeRefundId String?  @unique
+  amountCents    Int
+  reason         String
+  status         String
+  automatic      Boolean  @default(false)
+  requestedById  String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([paymentId])
+  @@index([status])
+  @@map("refunds")
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  workspaceId          String
+  workspace            BusinessWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  priceId              String
+  price                ProductPrice       @relation(fields: [priceId], references: [id], onDelete: Restrict)
+  stripeSubscriptionId String?            @unique
+  status               SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodStart   DateTime?          @db.Timestamptz(3)
+  currentPeriodEnd     DateTime?          @db.Timestamptz(3)
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?          @db.Timestamptz(3)
+  graceUntil           DateTime?          @db.Timestamptz(3)
+  createdAt            DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
+
+  items    SubscriptionItem[]
+  invoices Invoice[]
+  revenue  RevenueEntry[]
+
+  @@index([workspaceId])
+  @@index([priceId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("subscriptions")
+}
+
+model SubscriptionItem {
+  id                       String       @id @default(cuid())
+  subscriptionId           String
+  subscription             Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  priceId                  String
+  stripeSubscriptionItemId String?      @unique
+  quantity                 Int          @default(1)
+  createdAt                DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([subscriptionId])
+  @@index([priceId])
+  @@map("subscription_items")
+}
+
+model Invoice {
+  id               String            @id @default(cuid())
+  workspaceId      String
+  workspace        BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  subscriptionId   String?
+  subscription     Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  stripeInvoiceId  String?           @unique
+  number           String?
+  amountDueCents   Int
+  amountPaidCents  Int               @default(0)
+  currency         String            @default("usd")
+  status           String
+  hostedInvoiceUrl String?
+  periodStart      DateTime?         @db.Timestamptz(3)
+  periodEnd        DateTime?         @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  payments         Payment[]
+  taxRecords       TaxRecord[]
+
+  @@index([workspaceId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("invoices")
+}
+
+model TaxRecord {
+  id             String   @id @default(cuid())
+  orderId        String?
+  order          Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  invoiceId      String?
+  invoice        Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  amountCents    Int
+  jurisdiction   String?
+  stripeTaxTxnId String?  @unique
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([orderId])
+  @@index([invoiceId])
+  @@map("tax_records")
+}
+
+// ───────────────────────────── Finance ─────────────────────────────
+model FinancialTransaction {
+  id          String           @id @default(cuid())
+  type        LedgerType
+  amountCents Int
+  currency    String           @default("usd")
+  occurredAt  DateTime         @db.Timestamptz(3)
+  workspaceId String?
+  orderId     String?
+  order       Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  productId   String?
+  category    ExpenseCategory?
+  sourceType  String
+  sourceId    String
+  memo        String?
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@unique([sourceType, sourceId, type])
+  @@index([orderId])
+  @@index([workspaceId])
+  @@index([productId])
+  @@index([occurredAt])
+  @@index([type])
+  @@map("financial_transactions")
+}
+
+model RevenueEntry {
+  id             String        @id @default(cuid())
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderItemId    String?
+  orderItem      OrderItem?    @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  amountCents    Int
+  recognizedOn   DateTime      @db.Timestamptz(3)
+  periodStart    DateTime?     @db.Timestamptz(3)
+  periodEnd      DateTime?     @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@index([productId])
+  @@index([orderItemId])
+  @@index([subscriptionId])
+  @@index([recognizedOn])
+  @@map("revenue_entries")
+}
+
+model BusinessExpense {
+  id          String          @id @default(cuid())
+  category    ExpenseCategory
+  amountCents Int
+  incurredOn  DateTime        @db.Timestamptz(3)
+  vendor      String?
+  memo        String?
+  automatic   Boolean         @default(false)
+  sourceType  String?
+  sourceId    String?
+  createdById String?
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+
+  @@unique([sourceType, sourceId])
+  @@index([category])
+  @@index([incurredOn])
+  @@map("business_expenses")
+}
+
+model ProductionCost {
+  id               String     @id @default(cuid())
+  productId        String
+  product          Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  orderItemId      String?
+  orderItem        OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  jobId            String?
+  kind             String
+  amountMillicents Int
+  details          Json?
+  createdAt        DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@index([productId])
+  @@index([orderItemId])
+  @@index([jobId])
+  @@index([createdAt])
+  @@map("production_costs")
+}
+
+model AdCampaign {
+  id          String      @id @default(cuid())
+  name        String
+  channel     String
+  startedOn   DateTime?   @db.Timestamptz(3)
+  endedOn     DateTime?   @db.Timestamptz(3)
+  budgetCents Int         @default(0)
+  expenses    AdExpense[]
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+
+  @@map("ad_campaigns")
+}
+
+model AdExpense {
+  id          String     @id @default(cuid())
+  campaignId  String
+  campaign    AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  amountCents Int
+  spentOn     DateTime   @db.Timestamptz(3)
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@index([campaignId])
+  @@index([spentOn])
+  @@map("ad_expenses")
+}
+
+model MonthlyFinancialSummary {
+  id         String   @id @default(cuid())
+  month      String   @unique
+  data       Json
+  computedAt DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("monthly_financial_summaries")
+}
+
+// ───────────────────────────── Automation ─────────────────────────────
+model AutomationJob {
+  id             String             @id @default(cuid())
+  type           String
+  status         JobStatus          @default(PENDING)
+  priority       Int                @default(50)
+  lane           String             @default("paid")
+  workspaceId    String?
+  workspace      BusinessWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  orderItemId    String?
+  orderItem      OrderItem?         @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  payload        Json
+  result         Json?
+  attempts       Int                @default(0)
+  maxAttempts    Int                @default(3)
+  runAt          DateTime           @default(now()) @db.Timestamptz(3)
+  lockedBy       String?
+  lockedAt       DateTime?          @db.Timestamptz(3)
+  leaseUntil     DateTime?          @db.Timestamptz(3)
+  heartbeatAt    DateTime?          @db.Timestamptz(3)
+  lastError      String?
+  idempotencyKey String             @unique
+  costMillicents Int                @default(0)
+  completedAt    DateTime?          @db.Timestamptz(3)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+
+  steps        AutomationStep[]
+  logs         AutomationLog[]
+  deliverables GeneratedDeliverable[]
+
+  @@index([status, runAt, priority])
+  @@index([type])
+  @@index([workspaceId])
+  @@index([orderItemId])
+  @@index([leaseUntil])
+  @@index([createdAt])
+  @@map("automation_jobs")
+}
+
+model AutomationStep {
+  id             String        @id @default(cuid())
+  jobId          String
+  job            AutomationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name           String
+  status         JobStatus
+  input          Json?
+  output         Json?
+  startedAt      DateTime      @db.Timestamptz(3)
+  finishedAt     DateTime?     @db.Timestamptz(3)
+  durationMs     Int?
+  costMillicents Int           @default(0)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@index([jobId])
+  @@map("automation_steps")
+}
+
+model AutomationLog {
+  id        String        @id @default(cuid())
+  jobId     String
+  job       AutomationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  level     String
+  message   String
+  data      Json?
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@index([jobId])
+  @@index([createdAt])
+  @@map("automation_logs")
+}
+
+model GeneratedDeliverable {
+  id          String            @id @default(cuid())
+  workspaceId String
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         AutomationJob?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  orderItemId String?
+  orderItem   OrderItem?        @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  kind        String
+  fileName    String
+  storageKey  String            @unique
+  mime        String
+  sizeBytes   Int
+  sha256      String
+  width       Int?
+  height      Int?
+  durationMs  Int?
+  isPreview   Boolean           @default(false)
+  watermarked Boolean           @default(false)
+  publicUrl   String?
+  validation  Json
+  expiresAt   DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([jobId])
+  @@index([orderItemId])
+  @@index([createdAt])
+  @@map("generated_deliverables")
+}
+
+model NotificationLog {
+  id         String   @id @default(cuid())
+  channel    String
+  to         String
+  template   String
+  status     String
+  providerId String?
+  error      String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("notification_logs")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model WorkerHeartbeat {
+  workerId   String   @id
+  version    String
+  info       Json?
+  lastBeatAt DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([lastBeatAt])
+  @@map("worker_heartbeats")
+}
+
+// ───────────────────────────── Logos / media ─────────────────────────────
+model LogoUpload {
+  id          String        @id @default(cuid())
+  workspaceId String
+  assetId     String
+  asset       CustomerAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  purpose     String
+  analysis    Json?
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  renders     LogoRender[]
+
+  @@index([workspaceId])
+  @@index([assetId])
+  @@map("logo_uploads")
+}
+
+model LogoRender {
+  id            String     @id @default(cuid())
+  uploadId      String
+  upload        LogoUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  style         String
+  isPreview     Boolean
+  inputHash     String
+  deliverableId String?
+  params        Json?
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@index([uploadId])
+  @@index([inputHash])
+  @@map("logo_renders")
+}
+
+model LogoConcept {
+  id          String             @id @default(cuid())
+  workspaceId String
+  workspace   BusinessWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestId   String
+  orderItemId String?
+  seed        String
+  archetype   String
+  svg         String
+  params      Json
+  chosen      Boolean            @default(false)
+  purchased   Boolean            @default(false)
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime           @updatedAt @db.Timestamptz(3)
+  fingerprint LogoFingerprint?
+  reports     SimilarityReport[]
+
+  @@index([workspaceId])
+  @@index([requestId])
+  @@map("logo_concepts")
+}
+
+model LogoFingerprint {
+  id         String       @id @default(cuid())
+  conceptId  String?      @unique
+  concept    LogoConcept? @relation(fields: [conceptId], references: [id], onDelete: SetNull)
+  source     String
+  label      String?
+  phash      String
+  dhash      String
+  huMoments  Float[]
+  layoutSig  String
+  paletteSig String
+  reservedAt DateTime?    @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([source])
+  @@index([reservedAt])
+  @@map("logo_fingerprints")
+}
+
+model SimilarityReport {
+  id           String      @id @default(cuid())
+  conceptId    String
+  concept      LogoConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  checkedCount Int
+  minDistance  Float
+  thresholds   Json
+  nameCheck    Json
+  extended     Boolean     @default(false)
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(3)
+
+  @@index([conceptId])
+  @@map("similarity_reports")
+}
+
+// ───────────────────────────── E-books ─────────────────────────────
+model EBookCategory {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  ebooks    EBook[]
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("ebook_categories")
+}
+
+model EBook {
+  id                String                   @id @default(cuid())
+  slug              String                   @unique
+  title             String
+  subtitle          String?
+  author            String
+  categoryId        String
+  category          EBookCategory            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  description       String
+  language          String                   @default("en")
+  tags              String[]
+  priceCents        Int
+  stripePriceId     String?                  @unique
+  coverKey          String?
+  sourceKey         String?
+  pageCount         Int?
+  chapter1StartPage Int                      @default(1)
+  previewPageCount  Int                      @default(3)
+  status            String                   @default("DRAFT")
+  uploadedById      String?
+  archivedAt        DateTime?                @db.Timestamptz(3)
+  createdAt         DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime                 @updatedAt @db.Timestamptz(3)
+  previewPages      EBookPreviewPage[]
+  purchases         EBookPurchase[]
+  attestations      EBookRightsAttestation[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@map("ebooks")
+}
+
+model EBookPreviewPage {
+  id         String   @id @default(cuid())
+  ebookId    String
+  ebook      EBook    @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+  pageNumber Int
+  imageKey   String
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([ebookId, pageNumber])
+  @@map("ebook_preview_pages")
+}
+
+model EBookPurchase {
+  id            String            @id @default(cuid())
+  ebookId       String
+  ebook         EBook             @relation(fields: [ebookId], references: [id], onDelete: Restrict)
+  workspaceId   String
+  workspace     BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId        String
+  orderItemId   String?           @unique
+  stampedKey    String?
+  downloadLimit Int               @default(5)
+  downloadCount Int               @default(0)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @db.Timestamptz(3)
+  downloads     EBookDownload[]
+
+  @@index([ebookId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("ebook_purchases")
+}
+
+model EBookDownload {
+  id         String        @id @default(cuid())
+  purchaseId String
+  purchase   EBookPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@index([purchaseId])
+  @@map("ebook_downloads")
+}
+
+model EBookRightsAttestation {
+  id        String   @id @default(cuid())
+  ebookId   String
+  ebook     EBook    @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+  userId    String
+  text      String
+  ip        String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([ebookId])
+  @@map("ebook_rights_attestations")
+}
+
+// ───────────────────────────── Websites / domains ─────────────────────────────
+model Website {
+  id              String            @id @default(cuid())
+  workspaceId     String
+  workspace       BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name            String
+  industry        String
+  status          WebsiteStatus     @default(DRAFT)
+  design          Json
+  content         Json
+  hostingProvider String?
+  previewUrl      String?
+  liveUrl         String?
+  subscriptionId  String?
+  archivedAt      DateTime?         @db.Timestamptz(3)
+  createdAt       DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime          @updatedAt @db.Timestamptz(3)
+
+  pages       WebsitePage[]
+  versions    WebsiteVersion[]
+  deployments WebsiteDeployment[]
+  leads       WebsiteLead[]
+  domains     Domain[]
+  uptime      UptimeCheck[]
+  geoPages    GeoLocationPage[]
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("websites")
+}
+
+model WebsitePage {
+  id        String   @id @default(cuid())
+  websiteId String
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  slug      String
+  title     String
+  content   Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([websiteId, slug])
+  @@map("website_pages")
+}
+
+model WebsiteVersion {
+  id          String              @id @default(cuid())
+  websiteId   String
+  website     Website             @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  version     Int
+  bundleKey   String
+  contentHash String
+  notes       String?
+  createdById String?
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+  deployments WebsiteDeployment[]
+
+  @@unique([websiteId, version])
+  @@map("website_versions")
+}
+
+model WebsiteDeployment {
+  id                   String          @id @default(cuid())
+  websiteId            String
+  website              Website         @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  versionId            String?
+  version              WebsiteVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  provider             String
+  providerDeploymentId String?
+  status               String
+  url                  String?
+  log                  Json?
+  startedAt            DateTime        @db.Timestamptz(3)
+  finishedAt           DateTime?       @db.Timestamptz(3)
+  createdAt            DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime        @updatedAt @db.Timestamptz(3)
+
+  @@index([websiteId])
+  @@index([versionId])
+  @@map("website_deployments")
+}
+
+model WebsiteLead {
+  id        String   @id @default(cuid())
+  websiteId String
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  message   String
+  ip        String?
+  spamScore Float    @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([websiteId])
+  @@index([createdAt])
+  @@map("website_leads")
+}
+
+model Domain {
+  id           String            @id @default(cuid())
+  workspaceId  String
+  workspace    BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  websiteId    String?
+  website      Website?          @relation(fields: [websiteId], references: [id], onDelete: SetNull)
+  name         String            @unique
+  status       DomainStatus      @default(QUOTED)
+  registrar    String?
+  coveredByRoi Boolean           @default(false)
+  external     Boolean           @default(false)
+  registeredAt DateTime?         @db.Timestamptz(3)
+  expiresAt    DateTime?         @db.Timestamptz(3)
+  autoRenew    Boolean           @default(true)
+  privacy      Boolean           @default(true)
+  verification Json?
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
+
+  renewals   DomainRenewal[]
+  dnsRecords DnsRecord[]
+  sslChecks  SslCheck[]
+
+  @@index([workspaceId])
+  @@index([websiteId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("domains")
+}
+
+model DomainQuote {
+  id                String   @id @default(cuid())
+  workspaceId       String?
+  name              String
+  available         Boolean
+  premium           Boolean
+  restricted        Boolean
+  firstYearCents    Int
+  renewalCents      Int
+  effectiveCents    Int
+  thresholdCents    Int
+  handlingFeeCents  Int
+  coveredByRoi      Boolean
+  customerPaysCents Int
+  registrar         String
+  expiresAt         DateTime @db.Timestamptz(3)
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([name])
+  @@map("domain_quotes")
+}
+
+model DomainRenewal {
+  id           String   @id @default(cuid())
+  domainId     String
+  domain       Domain   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  dueOn        DateTime @db.Timestamptz(3)
+  amountCents  Int
+  coveredByRoi Boolean
+  status       String
+  invoiceId    String?
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([domainId])
+  @@index([dueOn])
+  @@map("domain_renewals")
+}
+
+model DnsRecord {
+  id               String   @id @default(cuid())
+  domainId         String
+  domain           Domain   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  type             String
+  name             String
+  content          String
+  ttl              Int      @default(300)
+  providerRecordId String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([domainId])
+  @@map("dns_records")
+}
+
+model HostingAccount {
+  id           String   @id @default(cuid())
+  provider     String
+  accountRef   String
+  projectCount Int      @default(0)
+  projectLimit Int?
+  status       String
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([provider, accountRef])
+  @@map("hosting_accounts")
+}
+
+model UptimeCheck {
+  id         String   @id @default(cuid())
+  websiteId  String?
+  website    Website? @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  url        String
+  httpStatus Int?
+  ok         Boolean
+  latencyMs  Int?
+  checkedAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([websiteId])
+  @@index([checkedAt])
+  @@map("uptime_checks")
+}
+
+model SslCheck {
+  id        String    @id @default(cuid())
+  domainId  String?
+  domain    Domain?   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  host      String
+  validTo   DateTime? @db.Timestamptz(3)
+  issuer    String?
+  ok        Boolean
+  checkedAt DateTime  @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([domainId])
+  @@index([checkedAt])
+  @@map("ssl_checks")
+}
+
+// ───────────────────────────── SEO / GEO / AI visibility ─────────────────────────────
+model SeoAudit {
+  id           String            @id @default(cuid())
+  workspaceId  String
+  workspace    BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  websiteId    String?
+  url          String
+  status       String
+  score        Int?
+  pagesCrawled Int               @default(0)
+  verified     Boolean           @default(false)
+  startedAt    DateTime?         @db.Timestamptz(3)
+  finishedAt   DateTime?         @db.Timestamptz(3)
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
+  findings     SeoFinding[]
+  reports      SeoReport[]
+
+  @@index([workspaceId])
+  @@index([createdAt])
+  @@map("seo_audits")
+}
+
+model SeoFinding {
+  id        String    @id @default(cuid())
+  auditId   String
+  audit     SeoAudit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  code      String
+  severity  String
+  pageUrl   String
+  message   String
+  impact    Int
+  effort    Int
+  data      Json?
+  fixedAt   DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([auditId])
+  @@index([code])
+  @@map("seo_findings")
+}
+
+model SeoReport {
+  id          String    @id @default(cuid())
+  workspaceId String
+  auditId     String?
+  audit       SeoAudit? @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  month       String
+  fileKey     String?
+  summary     Json
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([auditId])
+  @@map("seo_reports")
+}
+
+model KeywordSuggestion {
+  id          String     @id @default(cuid())
+  workspaceId String
+  keyword     String
+  source      DataSource
+  score       Float
+  impressions Int?
+  clicks      Int?
+  position    Float?
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@map("keyword_suggestions")
+}
+
+model GeoLocationPage {
+  id          String    @id @default(cuid())
+  websiteId   String
+  website     Website   @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  placeId     String
+  place       UsPlace   @relation(fields: [placeId], references: [id], onDelete: Restrict)
+  slug        String
+  wordCount   Int
+  similarity  Float
+  indexable   Boolean
+  status      String
+  publishedAt DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([websiteId, slug])
+  @@index([placeId])
+  @@map("geo_location_pages")
+}
+
+model NapCheck {
+  id          String   @id @default(cuid())
+  workspaceId String
+  url         String
+  matched     Boolean
+  details     Json
+  checkedAt   DateTime @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@map("nap_checks")
+}
+
+model UsPlace {
+  id         String            @id @default(cuid())
+  geoid      String            @unique
+  kind       String
+  name       String
+  stateCode  String
+  countyName String?
+  lat        Float?
+  lng        Float?
+  population Int?
+  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime          @updatedAt @db.Timestamptz(3)
+  geoPages   GeoLocationPage[]
+
+  @@index([stateCode, kind])
+  @@index([name])
+  @@map("us_places")
+}
+
+model SearchConsoleSnapshot {
+  id          String   @id @default(cuid())
+  workspaceId String
+  date        DateTime @db.Timestamptz(3)
+  data        Json
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([workspaceId, date])
+  @@map("search_console_snapshots")
+}
+
+model AiVisibilityAudit {
+  id           String             @id @default(cuid())
+  workspaceId  String?
+  workspace    BusinessWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  businessName String
+  city         String
+  category     String
+  url          String
+  email        String?
+  status       String
+  score        Int?
+  breakdown    Json?
+  fixes        Json?
+  shareToken   String             @unique
+  createdAt    DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime           @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([createdAt])
+  @@map("ai_visibility_audits")
+}
+
+model AiTrackedQuestion {
+  id          String           @id @default(cuid())
+  workspaceId String
+  question    String
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  checks      AiMentionCheck[]
+
+  @@index([workspaceId])
+  @@map("ai_tracked_questions")
+}
+
+model AiMentionCheck {
+  id             String            @id @default(cuid())
+  questionId     String
+  question       AiTrackedQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  engine         String
+  method         String
+  mentioned      Boolean
+  position       Int?
+  sentiment      String?
+  answer         String?
+  citedSources   String[]
+  checkedAt      DateTime          @db.Timestamptz(3)
+  enteredById    String?
+  idempotencyKey String            @unique
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([questionId])
+  @@index([checkedAt])
+  @@map("ai_mention_checks")
+}
+
+// ───────────────────────────── Social ─────────────────────────────
+model SocialAccount {
+  id                 String            @id @default(cuid())
+  workspaceId        String
+  workspace          BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  platform           SocialPlatform
+  externalId         String
+  handle             String
+  accessTokenEnc     String
+  refreshTokenEnc    String?
+  tokenExpiresAt     DateTime?         @db.Timestamptz(3)
+  scopes             String[]
+  status             String            @default("CONNECTED")
+  postingMode        PostingMode       @default(APPROVE_FIRST)
+  autopilot          Boolean           @default(false)
+  autopilotConsentAt DateTime?         @db.Timestamptz(3)
+  paused             Boolean           @default(false)
+  createdAt          DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(3)
+
+  posts        SocialPost[]
+  insightModel SocialInsightModel?
+  calendar     ContentCalendarItem[]
+
+  @@unique([workspaceId, platform, externalId])
+  @@index([workspaceId])
+  @@map("social_accounts")
+}
+
+model SocialPlan {
+  id              String               @id @default(cuid())
+  slug            String               @unique
+  name            String
+  priceCents      Int
+  interval        PriceInterval        @default(MONTH)
+  postsPerMonth   Int
+  platforms       SocialPlatform[]
+  imageCount      Int
+  analyticsDepth  String
+  approvalOptions String[]
+  published       Boolean              @default(false)
+  productPlanId   String?
+  createdAt       DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime             @updatedAt @db.Timestamptz(3)
+  subscriptions   SocialSubscription[]
+
+  @@map("social_plans")
+}
+
+model SocialSubscription {
+  id                  String     @id @default(cuid())
+  workspaceId         String
+  socialPlanId        String
+  socialPlan          SocialPlan @relation(fields: [socialPlanId], references: [id], onDelete: Restrict)
+  subscriptionId      String?
+  status              String
+  postsUsedThisPeriod Int        @default(0)
+  createdAt           DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([socialPlanId])
+  @@map("social_subscriptions")
+}
+
+model ContentCalendarItem {
+  id              String         @id @default(cuid())
+  workspaceId     String
+  socialAccountId String?
+  socialAccount   SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  scheduledFor    DateTime       @db.Timestamptz(3)
+  kind            String
+  topic           String
+  status          String         @default("PLANNED")
+  postId          String?
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([socialAccountId])
+  @@index([scheduledFor])
+  @@map("content_calendar_items")
+}
+
+model SocialPost {
+  id              String                     @id @default(cuid())
+  workspaceId     String
+  workspace       BusinessWorkspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialAccountId String
+  socialAccount   SocialAccount              @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  caption         String
+  hashtags        String[]
+  mediaKeys       String[]
+  status          SocialPostStatus           @default(DRAFT)
+  scheduledFor    DateTime?                  @db.Timestamptz(3)
+  publishedAt     DateTime?                  @db.Timestamptz(3)
+  externalPostId  String?
+  permalink       String?
+  error           String?
+  features        Json?
+  approvedById    String?
+  idempotencyKey  String                     @unique
+  createdAt       DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime                   @updatedAt @db.Timestamptz(3)
+  metrics         SocialPostMetricSnapshot[]
+
+  @@index([workspaceId])
+  @@index([socialAccountId])
+  @@index([status])
+  @@index([scheduledFor])
+  @@map("social_posts")
+}
+
+model SocialPostMetricSnapshot {
+  id             String     @id @default(cuid())
+  postId         String
+  post           SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  capturedAt     DateTime   @db.Timestamptz(3)
+  source         String
+  reach          Int?
+  impressions    Int?
+  likes          Int?
+  comments       Int?
+  shares         Int?
+  saves          Int?
+  engagementRate Float?
+  raw            Json?
+  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@index([postId, capturedAt])
+  @@map("social_post_metric_snapshots")
+}
+
+model SocialInsightModel {
+  id              String        @id @default(cuid())
+  socialAccountId String        @unique
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  weights         Json
+  bandit          Json
+  summary         Json
+  sampleSize      Int
+  trainedAt       DateTime      @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+
+  @@map("social_insight_models")
+}
+
+model HashtagSet {
+  id          String   @id @default(cuid())
+  workspaceId String?
+  industry    String?
+  name        String
+  tags        String[]
+  performance Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([industry])
+  @@map("hashtag_sets")
+}
+
+model BrandKit {
+  id            String            @id @default(cuid())
+  workspaceId   String            @unique
+  workspace     BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  logoAssetId   String?
+  colors        Json
+  fonts         Json
+  tone          String
+  industry      String
+  location      String?
+  offers        Json?
+  doNotSay      String[]
+  photoAssetIds String[]
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@map("brand_kits")
+}
+
+model SocialWebhookEvent {
+  id          String         @id @default(cuid())
+  platform    SocialPlatform
+  eventId     String         @unique
+  payload     Json
+  processedAt DateTime?      @db.Timestamptz(3)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@map("social_webhook_events")
+}
+
+// ───────────────────────────── Signatures ─────────────────────────────
+model SignatureTemplate {
+  id        String         @id @default(cuid())
+  slug      String         @unique
+  name      String
+  active    Boolean        @default(true)
+  sortOrder Int            @default(0)
+  sets      SignatureSet[]
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
+
+  @@map("signature_templates")
+}
+
+model SignatureSet {
+  id          String              @id @default(cuid())
+  workspaceId String
+  workspace   BusinessWorkspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orderItemId String?
+  templateId  String
+  template    SignatureTemplate   @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  company     Json
+  status      String              @default("DRAFT")
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+  employees   SignatureEmployee[]
+  assets      SignatureAsset[]
+
+  @@index([workspaceId])
+  @@index([templateId])
+  @@map("signature_sets")
+}
+
+model SignatureEmployee {
+  id         String       @id @default(cuid())
+  setId      String
+  set        SignatureSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  name       String
+  title      String?
+  department String?
+  phone      String?
+  mobile     String?
+  email      String
+  photoKey   String?
+  extraLink  String?
+  sortOrder  Int          @default(0)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([setId])
+  @@map("signature_employees")
+}
+
+model SignatureAsset {
+  id         String       @id @default(cuid())
+  setId      String
+  set        SignatureSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  kind       String
+  storageKey String
+  publicUrl  String?
+  expiresAt  DateTime?    @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([setId])
+  @@map("signature_assets")
+}
+
+// ───────────────────────────── Assistant / AI ─────────────────────────────
+model KnowledgeSource {
+  id          String              @id @default(cuid())
+  workspaceId String?
+  name        String
+  kind        String
+  audience    String
+  status      String              @default("ACTIVE")
+  documents   KnowledgeDocument[]
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@map("knowledge_sources")
+}
+
+model KnowledgeDocument {
+  id        String           @id @default(cuid())
+  sourceId  String
+  source    KnowledgeSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  title     String
+  url       String?
+  content   String
+  checksum  String
+  chunks    KnowledgeChunk[]
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@unique([sourceId, checksum])
+  @@index([sourceId])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id          String            @id @default(cuid())
+  documentId  String
+  document    KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  audience    String
+  ordinal     Int
+  heading     String?
+  content     String
+  embedding   Float[]
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@index([documentId])
+  @@index([workspaceId, audience])
+  @@map("knowledge_chunks")
+}
+
+model AssistantConversation {
+  id          String              @id @default(cuid())
+  userId      String?
+  workspaceId String?
+  channel     String
+  title       String?
+  messages    AssistantMessage[]
+  toolCalls   AssistantToolCall[]
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@map("assistant_conversations")
+}
+
+model AssistantMessage {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  intent         String?
+  citations      Json?
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @db.Timestamptz(3)
+
+  @@index([conversationId])
+  @@map("assistant_messages")
+}
+
+model AssistantToolCall {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tool           String
+  input          Json
+  output         Json?
+  allowed        Boolean
+  durationMs     Int
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime              @updatedAt @db.Timestamptz(3)
+
+  @@index([conversationId])
+  @@map("assistant_tool_calls")
+}
+
+model ClientAiConnection {
+  id                String            @id @default(cuid())
+  workspaceId       String
+  workspace         BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  provider          String
+  label             String
+  keyEnc            String
+  keyLast4          String
+  monthlyLimitCents Int?
+  features          String[]
+  killSwitch        Boolean           @default(false)
+  status            String            @default("ACTIVE")
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(3)
+  usage             AIUsage[]
+
+  @@index([workspaceId])
+  @@map("client_ai_connections")
+}
+
+model AIUsage {
+  id             String              @id @default(cuid())
+  workspaceId    String?
+  connectionId   String?
+  connection     ClientAiConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  feature        String
+  tokensIn       Int                 @default(0)
+  tokensOut      Int                 @default(0)
+  costMillicents Int                 @default(0)
+  redactions     Int                 @default(0)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@index([workspaceId])
+  @@index([connectionId])
+  @@index([createdAt])
+  @@map("ai_usage")
+}
+
+// ───────────────────────────── Support / abuse ─────────────────────────────
+model SupportTicket {
+  id          String            @id @default(cuid())
+  number      Int               @unique @default(autoincrement())
+  workspaceId String
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  subject     String
+  status      TicketStatus      @default(OPEN)
+  priority    String            @default("NORMAL")
+  assigneeId  String?
+  createdById String
+  slaDueAt    DateTime?         @db.Timestamptz(3)
+  resolvedAt  DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  messages    SupportMessage[]
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([assigneeId])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id          String              @id @default(cuid())
+  ticketId    String
+  ticket      SupportTicket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId    String
+  body        String
+  internal    Boolean             @default(false)
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+  attachments SupportAttachment[]
+
+  @@index([ticketId])
+  @@map("support_messages")
+}
+
+model SupportAttachment {
+  id         String         @id @default(cuid())
+  messageId  String
+  message    SupportMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  storageKey String
+  fileName   String
+  sizeBytes  Int
+  mime       String
+  scanStatus ScanStatus     @default(PENDING)
+  createdAt  DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime       @updatedAt @db.Timestamptz(3)
+
+  @@index([messageId])
+  @@map("support_attachments")
+}
+
+model ContentReport {
+  id            String   @id @default(cuid())
+  targetType    String
+  targetId      String
+  reason        String
+  details       String?
+  reporterEmail String?
+  status        String   @default("OPEN")
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("content_reports")
+}
+
+model Takedown {
+  id              String    @id @default(cuid())
+  kind            String
+  claimantName    String
+  claimantEmail   String
+  claimantAddress String?
+  url             String
+  workDescription String
+  statements      Json
+  signature       String
+  status          String    @default("RECEIVED")
+  targetType      String?
+  targetId        String?
+  decidedAt       DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("takedowns")
+}
+
+model ModerationDecision {
+  id          String   @id @default(cuid())
+  targetType  String
+  targetId    String
+  decision    String
+  reason      String
+  decidedById String?
+  automatic   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([targetType, targetId])
+  @@map("moderation_decisions")
+}
+
+model BlockedTerm {
+  id        String   @id @default(cuid())
+  term      String   @unique
+  kind      String
+  severity  String   @default("BLOCK")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("blocked_terms")
+}
+
+// ───────────────────────────── Marketing email ─────────────────────────────
+model EmailTemplate {
+  id        String          @id @default(cuid())
+  slug      String          @unique
+  name      String
+  kind      String
+  subject   String
+  html      String
+  text      String
+  campaigns EmailCampaign[]
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(3)
+
+  @@map("email_templates")
+}
+
+model EmailCampaign {
+  id          String        @id @default(cuid())
+  name        String
+  templateId  String
+  template    EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  segment     Json
+  status      String        @default("DRAFT")
+  scheduledAt DateTime?     @db.Timestamptz(3)
+  sentAt      DateTime?     @db.Timestamptz(3)
+  stats       Json?
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  events      EmailEvent[]
+
+  @@index([templateId])
+  @@index([status])
+  @@map("email_campaigns")
+}
+
+model EmailSubscriber {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String?
+  status           SubscriberStatus @default(SUBSCRIBED)
+  workspaceId      String?
+  tags             String[]
+  unsubscribeToken String           @unique
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
+  consents         EmailConsent[]
+  events           EmailEvent[]
+
+  @@index([status])
+  @@map("email_subscribers")
+}
+
+model EmailConsent {
+  id           String          @id @default(cuid())
+  subscriberId String
+  subscriber   EmailSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  source       String
+  ip           String?
+  text         String
+  createdAt    DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime        @updatedAt @db.Timestamptz(3)
+
+  @@index([subscriberId])
+  @@map("email_consents")
+}
+
+model EmailSuppression {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  reason    String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("email_suppressions")
+}
+
+model EmailEvent {
+  id                String           @id @default(cuid())
+  eventId           String           @unique
+  subscriberId      String?
+  subscriber        EmailSubscriber? @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+  campaignId        String?
+  campaign          EmailCampaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  providerMessageId String?
+  type              String
+  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([subscriberId])
+  @@index([campaignId])
+  @@index([type])
+  @@map("email_events")
+}
+
+model MarketingCampaign {
+  id        String    @id @default(cuid())
+  name      String
+  channel   String
+  utm       Json?
+  startedAt DateTime? @db.Timestamptz(3)
+  endedAt   DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("marketing_campaigns")
+}
+
+// ───────────────────────────── Affiliates ─────────────────────────────
+model AffiliateProfile {
+  id            String       @id @default(cuid())
+  userId        String       @unique
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code          String       @unique
+  status        String       @default("PENDING")
+  commissionBps Int          @default(1000)
+  approvedAt    DateTime?    @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(3)
+  referrals     Referral[]
+  commissions   Commission[]
+  payouts       Payout[]
+
+  @@map("affiliate_profiles")
+}
+
+model Referral {
+  id          String           @id @default(cuid())
+  affiliateId String
+  affiliate   AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  cookieId    String           @unique
+  workspaceId String?
+  landingUrl  String?
+  ipHash      String?
+  clickedAt   DateTime         @db.Timestamptz(3)
+  convertedAt DateTime?        @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  commissions Commission[]
+
+  @@index([affiliateId])
+  @@index([workspaceId])
+  @@map("referrals")
+}
+
+model Commission {
+  id          String           @id @default(cuid())
+  affiliateId String
+  affiliate   AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  referralId  String?
+  referral    Referral?        @relation(fields: [referralId], references: [id], onDelete: SetNull)
+  orderId     String           @unique
+  amountCents Int
+  status      CommissionStatus @default(PENDING)
+  holdUntil   DateTime         @db.Timestamptz(3)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([affiliateId])
+  @@index([referralId])
+  @@index([status])
+  @@map("commissions")
+}
+
+model Payout {
+  id           String           @id @default(cuid())
+  affiliateId  String
+  affiliate    AffiliateProfile @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  amountCents  Int
+  status       String           @default("PENDING")
+  reference    String?
+  approvedById String?
+  paidAt       DateTime?        @db.Timestamptz(3)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([affiliateId])
+  @@map("payouts")
+}
+
+// ───────────────────────────── Platform ─────────────────────────────
+model Integration {
+  id             String            @id @default(cuid())
+  key            String            @unique
+  name           String
+  status         IntegrationStatus @default(AWAITING_CONFIGURATION)
+  requiredEnv    String[]
+  missingEnv     String[]
+  unlocks        String[]
+  ownerStep      String
+  lastCheckAt    DateTime?         @db.Timestamptz(3)
+  lastError      String?
+  credentialsEnc String?
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@map("integrations")
+}
+
+model FeatureFlag {
+  id          String     @id @default(cuid())
+  key         String     @unique
+  visibility  Visibility @default(HIDDEN)
+  description String
+  updatedById String?
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(3)
+
+  @@map("feature_flags")
+}
+
+model Setting {
+  key         String   @id
+  value       Json
+  description String?
+  updatedById String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("settings")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorRole  String?
+  action     String
+  targetType String?
+  targetId   String?
+  ip         String?
+  userAgent  String?
+  data       Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  type        String
+  payload     Json
+  processedAt DateTime? @db.Timestamptz(3)
+  error       String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([provider, eventId])
+  @@index([createdAt])
+  @@map("webhook_events")
+}
+
+model BackupRun {
+  id         String    @id @default(cuid())
+  kind       String
+  status     String
+  objectKey  String?
+  sizeBytes  BigInt?
+  details    Json?
+  startedAt  DateTime  @db.Timestamptz(3)
+  finishedAt DateTime? @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([kind, startedAt])
+  @@map("backup_runs")
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  company   String?
+  topic     String
+  message   String
+  ip        String?
+  status    String   @default("NEW")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+model LegalDocument {
+  slug       String   @id
+  title      String
+  body       String
+  version    Int      @default(1)
+  reviewNote String   @default("Attorney review recommended before launch.")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("legal_documents")
+}

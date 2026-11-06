@@ -1,0 +1,26 @@
+# DECISIONS
+
+Interpretations and engineering decisions taken while executing the master spec v4 (§0.2-1). Newest last.
+
+| ID | Decision | Why |
+|---|---|---|
+| D-01 | **One Next.js application** (apps/web) serves the public site, all dashboards and the API. Angular dropped. | Spec §1.2-1. |
+| D-02 | Roles ADMIN, PM, MANAGER, CUSTOMER, AFFILIATE; ADMIN/PM/MANAGER may open e-book sources (audited); customers never. | Spec §1.2-2. |
+| D-03 | Domain rule: effective = max(first-year, renewal); `< $15.00` ROI pays while subscription active; `≥ $15.00` (incl. exactly $15.00) customer pays full, every renewal. Threshold, handling fee, premium policy are settings (`domain.policy`). | Spec §1.2-3, tested at $14.99/$15.00/$15.01. |
+| D-04 | Logo Generator: 3 concepts, pick one + package Basic $24 / Professional $37 / Premium $51. | Spec §1.2-4. |
+| D-05 | SEO $19/month requires an active ROI website subscription; $35 standalone. GEO $11 / $33. | Spec §1.2-5/6. |
+| D-06 | Prices are data (`product_prices`, versioned). Every admin edit creates a new version; existing subscriptions keep their price until migrated deliberately. | Spec §1.2-9, §9.1. |
+| D-07 | **Seeded products are `COMING_SOON`, not `HIDDEN`.** The marketing/detail pages are public (needed for SEO/GEO/AEO and the v4 homepage), but purchase is disabled. A product can only be set `LIVE` when every integration in `requiredIntegrations` is `CONNECTED` (enforced server-side). New products default to `HIDDEN` (schema default). | Reconciles §0.2-2 ("hide or disable the customer-facing feature") with §7 (public pages from the DB). The customer-facing *feature* (checkout) stays disabled. |
+| D-08 | The free AI Visibility audit (Product 11 step 1) is `LIVE` from day one: it runs entirely inside ROI (SSRF-safe fetch + rule scoring), needs no paid provider, and is a lead magnet. Paid AI Visibility plans are seeded **draft** (admin finalizes prices with the margin guard). | Spec §12 Product 11, §0.2. |
+| D-09 | Social Autopilot and AI Visibility paid plans are seeded unpublished with suggested prices; the admin publishes them after reviewing the margin guard (X link-post cost included). | Spec Product 9 "Plans: seeded as draft". |
+| D-10 | Product 4 (E-books) has no fixed plan price; each `EBook.priceCents` is the price. Product 10 is quote-based (no list price). | Spec Product 4, 10. |
+| D-11 | Small API costs are stored in **millicents** (1/1000 cent, integer) because X posts cost about $0.015; all customer money stays integer cents. | Spec §5.3 integer money; §9.3 X cost. |
+| D-12 | **Baseline migration generated from Prisma's own parser (DMMF).** The build sandbox cannot download Prisma's native schema-engine (binaries.prisma.sh blocked by the egress proxy). `packages/database/scripts/baseline-sql.ts` emits DDL following Prisma Migrate's conventions; `apply-migrations.ts` applies migrations with the same `_prisma_migrations` bookkeeping/checksums as `prisma migrate deploy`. CI runs real Prisma `migrate diff --from-migrations --to-schema-datamodel` to prove zero drift. Future schema changes: `prisma migrate dev` on any machine with the engine. | Toolchain constraint; keeps "additive migrations + migrate deploy only" (§5.2). |
+| D-13 | Audit log is append-only via a database trigger that rejects UPDATE/DELETE/TRUNCATE for **every** role (stronger than a role without grants, and works with Neon's single owner role). | Spec §5.3. |
+| D-14 | Realtime: Postgres `NOTIFY roi_events` triggers on social metric snapshots, social post status and job status; SSE endpoints relay them on the always-on server and fall back to short polling on serverless hosts. | Spec §2.1 Realtime. |
+| D-15 | US places: states (FIPS) are seeded; counties/cities/ZIPs are loaded by `seed/import-us-places.ts` from the official US Census Gazetteer files at deploy time (open data). No coordinates or populations are typed in by hand. | Spec §0.2-3 (never invent data), §5.4 UsPlace. |
+| D-16 | Hosting for the owner's private preview: **Vercel** team "roi" (owner chose "you choose"). Vercel Hobby is non-commercial, so the deployment is a private preview: checkout stays disabled and no customers are onboarded until the team is on Pro or the VPS profile (Docker Compose + Caddy) is live. The VPS profile remains the production default (§2.2). | Spec §2.2, §0.5; owner answer 2026-11-06. |
+| D-17 | First admin is created by the seed only when no ADMIN exists, from `SEED_ADMIN_EMAIL` + an argon2id hash; `mustChangePassword = true` and TOTP enrollment is forced at first sign-in (2FA mandatory for staff, §6). | Spec §6, §24A. |
+| D-18 | Stripe: only a live-mode account is visible. The app refuses to boot with a live key in development/staging and with a test key in production. Until `STRIPE_*` are set, checkout is `AWAITING_CONFIGURATION`. | Spec §9.2. |
+| D-19 | Prisma 7.10.1 (latest stable) with `prisma-client` generator + `@prisma/adapter-pg` (works for Neon pooled URLs and any Postgres). Prisma 8 is still a release candidate with a different CLI and is not used. | Spec §2.1 "latest stable". |
+| D-20 | Tenant isolation: `scoped(workspaceId)` Prisma extension injects `workspaceId` into reads/creates and pre-checks ownership before unique updates/deletes; cross-tenant unique reads return "not found". | Spec §5.3. |
