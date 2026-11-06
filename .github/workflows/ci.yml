@@ -22,8 +22,24 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg poppler-utils qpdf
       - run: npm ci
       - run: npm run db:generate
-      - name: Migration drift check (real Prisma engine)
-        run: npx prisma migrate diff --config packages/database/prisma.config.ts --from-migrations packages/database/prisma/migrations --to-schema packages/database/prisma/schema.prisma --exit-code || (echo "::warning::Schema differs from migrations (see DECISIONS D-12)"; exit 0)
+      - name: Real Prisma migrate deploy + seed twice + drift check (mirrors the Vercel build)
+        env:
+          DATABASE_URL: postgresql://roi:roi_local_dev@localhost:5432/roi_drift
+          SEED_ADMIN_EMAIL: ci-admin@example.test
+          SEED_ADMIN_PASSWORD: ci-only-long-passphrase-0123
+        run: |
+          PGPASSWORD=roi_local_dev psql -h localhost -U roi -d roi_test -c 'CREATE DATABASE roi_drift'
+          npm run db:migrate:deploy
+          npm run db:seed
+          npm run db:seed
+          npm run db:check
+          set +e
+          npx prisma migrate diff --config packages/database/prisma.config.ts --from-config-datasource --to-schema packages/database/prisma/schema.prisma --script --exit-code > drift.sql
+          code=$?
+          set -e
+          if [ "$code" = "2" ]; then echo "::error::Migrations do not match schema.prisma. Missing SQL:"; cat drift.sql; exit 1; fi
+          if [ "$code" != "0" ]; then echo "::error::prisma migrate diff failed"; cat drift.sql; exit 1; fi
+          echo "No drift: migrations match schema.prisma"
       - run: npm run typecheck
       - run: npx tsc -p apps/web/tsconfig.json --noEmit
       - run: npm test
