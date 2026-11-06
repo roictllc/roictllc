@@ -22,7 +22,9 @@
     "db:migrate:deploy": "prisma migrate deploy --config packages/database/prisma.config.ts",
     "db:seed": "tsx packages/database/seed/seed.ts",
     "link-check": "tsx infrastructure/scripts/link-check.ts",
-    "worker": "tsx apps/worker/src/main.ts"
+    "worker": "tsx apps/worker/src/main.ts",
+    "vercel-build": "npm run db:generate && npm run db:migrate:deploy && npm run db:seed && npm run build -w @roi/web",
+    "db:apply": "tsx packages/database/scripts/apply-migrations.ts"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.3.0",

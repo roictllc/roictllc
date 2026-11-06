@@ -6,6 +6,7 @@ const PRIVATE = ['/dashboard', '/admin', '/affiliate', '/account', '/api/', '/ch
 const AI_BOTS = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-User', 'PerplexityBot', 'Google-Extended', 'Applebot-Extended', 'CCBot', 'Bingbot'];
 
 export default function robots(): MetadataRoute.Robots {
+  if (process.env.PREVIEW_NOINDEX === '1') return { rules: [{ userAgent: '*', disallow: '/' }] }; // private preview host
   return {
     rules: [{ userAgent: '*', allow: '/', disallow: PRIVATE }, ...AI_BOTS.map((ua) => ({ userAgent: ua, allow: '/', disallow: PRIVATE }))],
     sitemap: `${SITE.url}/sitemap.xml`,

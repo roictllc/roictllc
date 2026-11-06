@@ -62,7 +62,7 @@ export function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
   response.headers.set('x-request-id', requestId);
-  if (PRIVATE.test(pathname)) response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  if (PRIVATE.test(pathname) || process.env.PREVIEW_NOINDEX === '1') response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   if (mintCsrf) response.cookies.set(csrfCookie, csrf, { httpOnly: true, secure: https, sameSite: 'lax', path: '/' });
   return response;
 }
