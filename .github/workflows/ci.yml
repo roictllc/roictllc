@@ -16,7 +16,7 @@ jobs:
       TEST_DATABASE_URL: postgresql://roi:roi_local_dev@localhost:5432/roi_test
       DATABASE_URL: postgresql://roi:roi_local_dev@localhost:5432/roi_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg poppler-utils qpdf
@@ -38,21 +38,21 @@ jobs:
   secrets-scan:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: gitleaks/gitleaks-action@v2
         env: { GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
   codeql:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v3
         with: { languages: javascript-typescript }
       - uses: github/codeql-action/analyze@v3
   audit:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm ci && npm audit --omit=dev --audit-level=high
