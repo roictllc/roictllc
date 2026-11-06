@@ -1,6 +1,6 @@
 # HANDOFF (spec §0.2-5)
 
-Session 1 ended with the platform deployed as a private preview and the items below remaining. Resume here.
+Session 1 ended with the platform ready for a private preview on Vercel + Neon (owner imports the repo; see FINAL_REPORT) and the items below remaining. Resume here.
 
 ## Done
 See `IMPLEMENTATION_CHECKLIST.md` (✅ items) and `documentation/FINAL_REPORT.md` (test evidence).

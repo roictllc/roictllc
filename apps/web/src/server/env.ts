@@ -47,5 +47,28 @@ export function env(): Env {
   return e;
 }
 
-export const isHttps = () => (process.env.APP_URL ?? '').startsWith('https://');
-export const appUrl = () => (process.env.APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+/**
+ * Public base URL. APP_URL wins; on Vercel without APP_URL the project's production domain is used, so a
+ * preview works on whatever *.vercel.app name Vercel assigned.
+ */
+export const appUrl = () => {
+  const explicit = process.env.APP_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}`.replace(/\/$/, '');
+  return 'http://localhost:3000';
+};
+export const isHttps = () => appUrl().startsWith('https://');
+/** Hosts allowed as Origin for state-changing requests: the app host, Vercel's own hosts for this deployment, ALLOWED_ORIGINS. */
+export const allowedOriginHosts = () =>
+  new Set(
+    [
+      new URL(appUrl()).host,
+      process.env.VERCEL_PROJECT_PRODUCTION_URL,
+      process.env.VERCEL_URL,
+      process.env.VERCEL_BRANCH_URL,
+      ...(process.env.ALLOWED_ORIGINS ?? '').split(','),
+    ]
+      .map((h) => (h ?? '').trim().replace(/^https?:\/\//, '').replace(/\/$/, ''))
+      .filter(Boolean),
+  );

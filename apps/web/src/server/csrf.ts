@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
 import { safeEqual } from '@roi/shared-utils';
-import { appUrl, isHttps } from './env';
+import { allowedOriginHosts, isHttps } from './env';
 
 /**
  * CSRF (spec §6): double-submit token (cookie set by proxy.ts, echoed in a hidden form field or X-CSRF-Token header)
@@ -19,7 +19,7 @@ export function originAllowed(origin: string | null, host: string | null): boole
   if (!origin) return false;
   try {
     const o = new URL(origin);
-    const allowed = new Set([new URL(appUrl()).host, ...(process.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean)]);
+    const allowed = allowedOriginHosts();
     if (host) allowed.add(host);
     return allowed.has(o.host);
   } catch {

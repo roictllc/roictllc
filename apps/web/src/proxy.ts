@@ -14,7 +14,7 @@ function b64(bytes: Uint8Array) {
 }
 
 export function proxy(request: NextRequest) {
-  const https = (process.env.APP_URL ?? '').startsWith('https://');
+  const https = (process.env.APP_URL || (process.env.VERCEL_URL ? 'https://' : '')).startsWith('https://');
   const sessionCookie = https ? '__Host-roi_session' : 'roi_session';
   const csrfCookie = https ? '__Host-roi_csrf' : 'roi_csrf';
   const { pathname, search } = request.nextUrl;

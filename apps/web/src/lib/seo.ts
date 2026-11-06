@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 export const SITE = {
   name: 'ROI',
   legalName: 'ROI LLC',
-  url: (process.env.APP_URL ?? 'https://roictllc.com').replace(/\/$/, ''),
+  url: (process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://roictllc.com')).replace(/\/$/, ''),
   email: 'roictllc@gmail.com',
   tagline: 'Your Investment. Our Intelligence. Measurable Growth.',
   description: 'ROI makes AI assistants like ChatGPT recommend your business, runs your social media on autopilot, and builds the websites, logos and SEO that grow US small businesses.',

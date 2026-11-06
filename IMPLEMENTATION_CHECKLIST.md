@@ -9,7 +9,7 @@ Legend: ✅ built + automated test passes · 🟡 built, live use waits for an o
 - ✅ `npm run db:check` (OK/FAILED, no credentials printed) · ✅ `/api/health` (DB, queue, worker heartbeat, integrations)
 - ✅ Idempotent seed (catalog, 11 products, 19 plans, roles/permissions, integrations, flags, settings, templates, legal docs, states, assistant KB); never overwrites admin edits; no fake customers
 - ✅ Tenant isolation extension + cross-tenant tests · ✅ append-only audit log (DB trigger) + test
-- 🟡 Neon production database — applied by the Vercel build (`prisma migrate deploy`), see FINAL_REPORT
+- 🟡 Neon production database — created by the first Vercel build (`prisma migrate deploy`, verified with the real engine in CI), see FINAL_REPORT
 
 ## Auth & security (§6)
 - ✅ Registration, login, logout, email verification, password reset, change password, suspension
@@ -25,7 +25,7 @@ Legend: ✅ built + automated test passes · 🟡 built, live use waits for an o
 - ✅ Stripe webhook signature verification on raw body + idempotent event storage (tested)
 - 🟠 Admin read-only customer preview (impersonation model + grant table exist; UI not built)
 - ✅ Privacy export (JSON) + deletion request (ticket with legal timelines)
-- 🟠 CI security: gitleaks, CodeQL, npm audit, Dependabot configured — first GitHub run pending
+- ✅ CI security: gitleaks, CodeQL, npm audit, Dependabot — all green on GitHub (run 42304682127); Dependabot already opened update PRs
 
 ## Design system & public site (§7, §7.0, §7.1)
 - ✅ v4 vivid tokens, gradient CTAs with glow, glass panels, aurora/grid/noise, reduced-motion, self-hosted fonts
@@ -69,6 +69,6 @@ Legend: ✅ built + automated test passes · 🟡 built, live use waits for an o
 - ✅ Legal pages from DB (attorney-review note), DMCA form, contact form, moderation lists
 - ✅ Status page, health endpoint, worker heartbeat · 🟠 Sentry not wired · ⬜ uptime/SSL checker jobs
 - 🟠 Backups: encrypted pg_dump + monthly restore drill workflows written; need R2 + secrets to run
-- 🟠 CI (`ci.yml`, deploy, backup, restore drill) written — first run on GitHub pending
+- ✅ CI green on GitHub: real Prisma `migrate deploy` + seed twice + zero-drift check (same steps as the Vercel build), typecheck, 157 tests, production build, link check · 🟠 deploy/backup/restore-drill workflows need VPS + R2 secrets
 - 🟠 Docker images + Compose + Caddy (on-demand TLS gate) written — not built here (no Docker daemon)
 - ⬜ Playwright E2E suite (an end-to-end browser run of the admin sign-in/2FA flow was executed manually)

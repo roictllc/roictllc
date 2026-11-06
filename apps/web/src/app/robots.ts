@@ -2,6 +2,9 @@ import type { MetadataRoute } from 'next';
 import { SITE } from '@/lib/seo';
 
 /** Explicit AI-crawler rules (spec §7.1): public marketing content allowed, private areas disallowed. */
+/** Rendered per request so the preview flag set at runtime always applies. */
+export const dynamic = 'force-dynamic';
+
 const PRIVATE = ['/dashboard', '/admin', '/affiliate', '/account', '/api/', '/checkout', '/ai-visibility/report/', '/login', '/register', '/reset-password', '/verify-email'];
 const AI_BOTS = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'Claude-User', 'PerplexityBot', 'Google-Extended', 'Applebot-Extended', 'CCBot', 'Bingbot'];
 
