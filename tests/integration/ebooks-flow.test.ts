@@ -11,6 +11,9 @@ import { bookPlanSlug, ebookIngestHandler, ebookPurchaseHandler, enqueue, localS
 import { ebookPageUrl, verifyEbookPageSig } from '@/server/ebooks';
 import { makeCustomer } from './helpers';
 
+/** Jobs here are run by calling handlers directly; scheduling them far ahead keeps other tests' claim() calls away. */
+const FUTURE = new Date(Date.now() + 365 * 86_400_000);
+
 /** Product 4 (spec §12 tests): exactly the preview pages, stamped buyer copy, download limit, signed page URLs. */
 const storage = localStorage(mkdtempSync(path.join(tmpdir(), 'roi-ebk-')));
 
@@ -26,7 +29,7 @@ async function bookPdf(pages = 12, chapterAt = 4) {
 }
 
 async function ctx(type: string, payload: Record<string, unknown>, workspaceId: string | null, orderItemId: string | null = null) {
-  const job = await enqueue(db(), { type, payload, idempotencyKey: `${type}:${Math.random()}`, workspaceId, orderItemId });
+  const job = await enqueue(db(), { type, payload, idempotencyKey: `${type}:${Math.random()}`, workspaceId, orderItemId, runAt: FUTURE });
   return { db: db(), storage, jobId: job.id, workspaceId: workspaceId ?? '', orderItemId, payload, computeRateMillicentsPerS: 1 };
 }
 

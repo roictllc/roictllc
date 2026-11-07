@@ -13,6 +13,9 @@ import { pinkWatermarkRatio } from '../../packages/video-engine/src/index';
 import { readForensicTag } from '../../packages/logo-engine/src/index';
 import { makeCustomer, planFor } from './helpers';
 
+/** Jobs here are run by calling handlers directly; scheduling them far ahead keeps other tests' claim() calls away. */
+const FUTURE = new Date(Date.now() + 365 * 86_400_000);
+
 /**
  * Products 1–3 end to end on real files (spec §11-9): intake + scan, watermarked previews, paid delivery without
  * watermark, uniqueness bookkeeping, failure → refund scheduling.
@@ -26,7 +29,7 @@ const pngLogo = () => sharp(logoSvg(600, 400)).png().toBuffer();
 const tinyJpeg = () => sharp(logoSvg(96, 64)).flatten({ background: '#ffffff' }).jpeg({ quality: 60 }).toBuffer();
 
 async function ctxFor(workspaceId: string, type: string, payload: Record<string, unknown>, orderItemId: string | null = null): Promise<HandlerContext> {
-  const job = await enqueue(db(), { type, payload, idempotencyKey: `${type}:${Math.random()}`, workspaceId, orderItemId, lane: orderItemId ? 'paid' : 'preview' });
+  const job = await enqueue(db(), { type, payload, idempotencyKey: `${type}:${Math.random()}`, workspaceId, orderItemId, lane: orderItemId ? 'paid' : 'preview', runAt: FUTURE });
   return { db: db(), storage, jobId: job.id, workspaceId, orderItemId, payload, computeRateMillicentsPerS: 1 };
 }
 

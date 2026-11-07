@@ -9,6 +9,9 @@ import { enqueue, ingestLogoUpload, localStorage, renderSignature, signatureHand
 import { signDraft, verifyDraft } from '@/server/drafts';
 import { makeCustomer, planFor } from './helpers';
 
+/** Jobs here are run by calling handlers directly; scheduling them far ahead keeps other tests' claim() calls away. */
+const FUTURE = new Date(Date.now() + 365 * 86_400_000);
+
 /** Product 8 order flow (spec §12): signed drafts, safe links, static-logo publishing, full paid suite. */
 const storage = localStorage(mkdtempSync(path.join(tmpdir(), 'roi-sig-')));
 
@@ -20,7 +23,7 @@ describe('Email Signature Suite flow', () => {
     const [body, sig] = t.split('.');
     const forged = Buffer.from(JSON.stringify({ d: { a: 2 }, w: 'ws1', e: 9e9 })).toString('base64url');
     expect(verifyDraft(`${forged}.${sig}`, 'ws1')).toBeNull();
-    expect(verifyDraft(`${body}.x${sig.slice(1)}`, 'ws1')).toBeNull();
+    expect(verifyDraft(`${body}.${sig[0] === 'A' ? 'B' : 'A'}${sig.slice(1)}`, 'ws1')).toBeNull(); // always a different signature
     expect(verifyDraft(signDraft({ a: 1 }, 'ws1', -1), 'ws1')).toBeNull();
   });
 
@@ -46,7 +49,7 @@ describe('Email Signature Suite flow', () => {
       include: { items: true },
     });
     const item = order.items[0];
-    const job = await enqueue(db(), { type: 'product.email-signature-suite', payload: { orderItemId: item.id }, idempotencyKey: `sig-${item.id}`, workspaceId: ws.id, orderItemId: item.id });
+    const job = await enqueue(db(), { type: 'product.email-signature-suite', payload: { orderItemId: item.id }, idempotencyKey: `sig-${item.id}`, workspaceId: ws.id, orderItemId: item.id, runAt: FUTURE });
     await signatureHandler({ db: db(), storage, jobId: job.id, workspaceId: ws.id, orderItemId: item.id, payload: {}, computeRateMillicentsPerS: 1 });
     const files = await db().generatedDeliverable.findMany({ where: { workspaceId: ws.id } });
     const logoFile = files.find((f) => f.kind === 'signature-logo')!;
