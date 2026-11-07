@@ -7,7 +7,7 @@ import { db } from '@/server/db';
 import { rateLimit } from '@/server/rate-limit';
 import { requestMeta } from '@/server/request';
 import { audit } from '@/server/audit';
-import { isCreateSlug, previewAvailability } from '@/server/previews';
+import { isCreateSlug, previewAvailability, signatureAvailability } from '@/server/previews';
 
 export const runtime = 'nodejs';
 const MAX = 10 * 1024 * 1024;
@@ -29,8 +29,9 @@ export async function POST(req: Request) {
   const workspaceId = await customerWorkspaceId(s.user.id);
   if (!workspaceId) return Response.json({ error: 'No workspace.' }, { status: 403 });
   const product = new URL(req.url).searchParams.get('product') ?? '';
-  if (!isCreateSlug(product) || product === 'logo-generator') return Response.json({ error: 'Unknown product.' }, { status: 400 });
-  const avail = await previewAvailability(product);
+  const forSignature = product === 'email-signature-suite';
+  if (!forSignature && (!isCreateSlug(product) || product === 'logo-generator')) return Response.json({ error: 'Unknown product.' }, { status: 400 });
+  const avail = forSignature ? await signatureAvailability() : await previewAvailability(product as 'animated-gif-logo' | 'logo-revival');
   if (!avail.ok) return Response.json({ error: avail.reason }, { status: 409 });
   const len = Number(req.headers.get('content-length') ?? 0);
   if (len > MAX + 64 * 1024) return Response.json({ error: 'File is larger than 10 MB.' }, { status: 413 });
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   const storage = storageFromEnv();
   if (!storage) return Response.json({ error: 'File storage is awaiting configuration.' }, { status: 503 });
   try {
-    const r = await ingestLogoUpload(db(), storage, { workspaceId, buf: Buffer.from(await file.arrayBuffer()), originalName: file.name, purpose: product, minSide: product === 'logo-revival' ? 64 : 300 });
+    const r = await ingestLogoUpload(db(), storage, { workspaceId, buf: Buffer.from(await file.arrayBuffer()), originalName: file.name, purpose: product as 'animated-gif-logo' | 'logo-revival' | 'email-signature-suite', minSide: product === 'animated-gif-logo' ? 300 : 64 });
     await audit('upload.accepted', { actorId: s.user.id, actorRole: 'CUSTOMER', targetType: 'CustomerAsset', targetId: r.asset.id, data: { product, scanEngine: r.scanEngine, bytes: file.size } });
     return Response.json({ assetId: r.asset.id, width: r.asset.width, height: r.asset.height, name: file.name });
   } catch (e) {

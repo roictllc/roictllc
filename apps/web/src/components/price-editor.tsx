@@ -2,6 +2,7 @@
 import { useActionState, useMemo, useState } from 'react';
 import { computeMargin, type CostModel } from '@roi/shared-utils/margin';
 import type { ActionState } from './action-form';
+import { submitWithoutReset } from './form-pending';
 
 /** Live margin-guard preview while the admin types a price (spec §8.1, §9.3). */
 export function PriceEditor({ planId, planName, currentCents, interval, model, csrf, action }: {
@@ -13,7 +14,7 @@ export function PriceEditor({ planId, planName, currentCents, interval, model, c
   const cents = Math.round(Number(amount) * 100);
   const m = useMemo(() => (Number.isFinite(cents) && cents > 0 ? computeMargin(cents, model) : null), [cents, model]);
   return (
-    <form action={formAction} className="roi-glass space-y-4 rounded-[var(--radius-lg)] p-5">
+    <form action={formAction} onSubmit={submitWithoutReset(formAction)} className="roi-glass space-y-4 rounded-[var(--radius-lg)] p-5">
       <input type="hidden" name="csrf" value={csrf} />
       <input type="hidden" name="planId" value={planId} />
       <div className="flex items-center justify-between">

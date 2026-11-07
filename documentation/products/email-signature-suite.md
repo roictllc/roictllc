@@ -24,5 +24,14 @@ No guarantees of results; measured data is labeled with source and age.
 ## FAQ
 - **Does it work in Outlook?** Yes. Templates use tables and inline CSS for Outlook’s Word-based renderer; animated GIFs show their first frame in some Outlook versions, so the first frame always shows your full logo.
 
+## Customer flow (built)
+1. Product page → "Build my signatures" → `/dashboard/create/email-signature-suite`.
+2. Company block (name, website, address, brand colors, social links, banner/CTA, disclaimer), template (10), logo: the customer's paid **Animated GIF Logo** is detected and used automatically (checkbox), otherwise an optional static logo upload (same scanned intake as Product 1).
+3. Employees: paste CSV or import a file; template at `/api/signatures/template.csv`; every row validated (name, email format, duplicates, phone format, https links), errors listed by line; limit `signatures.maxEmployees` (50).
+4. **Preview** (no worker needed): the first 3 signatures rendered with a visible "ROI PREVIEW · NOT FOR USE" band; copy and context menu blocked. The validated data comes back as an HMAC-signed draft (workspace-bound, 24 h).
+5. **Buy**: only a valid signed draft is accepted → Stripe Checkout → job `product.email-signature-suite`.
+6. **Paid job**: static logo resized and published to the public bucket (permanent HTTPS URL for email clients) → all signatures rendered → email-HTML lint gate → ZIP (per-person HTML + text, gallery with copy buttons, install guides for Gmail, Outlook, Apple Mail, Thunderbird, Google Workspace admins) → delivery email.
+7. Links are restricted to http(s); `javascript:`/`data:` links are dropped before rendering.
+
 ## Build status
-Engine ✅ + worker end-to-end ✅ (13 + 1 tests).
+Templates ✅ · linter ✅ · CSV ✅ · previews ✅ · signed drafts ✅ · paid job ✅ · tests ✅ (`tests/integration/signatures-flow.test.ts`). Live use needs: R2 (public bucket for logos), Stripe, Resend.

@@ -58,11 +58,21 @@ export async function inputsFor(ctx: HandlerContext) {
 /** Product 8 — Email Signature Suite. */
 export const signatureHandler: Handler = async (ctx) => {
   const started = Date.now();
-  const data = (await inputsFor(ctx)) as { company: Company; employees: Employee[]; templateSlug: SignatureTemplateSlug; utm?: boolean };
+  const data = (await inputsFor(ctx)) as { company: Company & { logoAssetId?: string; useAnimatedLogo?: boolean }; employees: Employee[]; templateSlug: SignatureTemplateSlug; utm?: boolean };
   const item = ctx.orderItemId ? await ctx.db.orderItem.findUniqueOrThrow({ where: { id: ctx.orderItemId } }) : null;
-  // Use the customer's animated GIF logo (Product 1) when present in the workspace.
-  const gif = await ctx.db.generatedDeliverable.findFirst({ where: { workspaceId: ctx.workspaceId, kind: 'email-gif', isPreview: false, publicUrl: { not: null } }, orderBy: { createdAt: 'desc' } });
-  const company: Company = { ...data.company, logoUrl: data.company.logoUrl ?? gif?.publicUrl ?? undefined, logoWidth: gif?.width ?? data.company.logoWidth, logoHeight: gif?.height ?? data.company.logoHeight };
+  // Logo: the customer's animated email GIF (Product 1) when present and wanted; otherwise their uploaded static logo,
+  // published to the permanent public bucket (images in signatures must be hosted on HTTPS URLs, spec Product 8).
+  const gif = data.company.useAnimatedLogo === false ? null : await ctx.db.generatedDeliverable.findFirst({ where: { workspaceId: ctx.workspaceId, kind: 'email-gif', isPreview: false, publicUrl: { not: null } }, orderBy: { createdAt: 'desc' } });
+  let staticLogo: { url?: string; width?: number; height?: number } = {};
+  if (!gif && data.company.logoAssetId) {
+    staticLogo = await step(ctx.db, ctx.jobId, 'publish-logo', { asset: data.company.logoAssetId }, async () => {
+      const asset = await ctx.db.customerAsset.findFirstOrThrow({ where: { id: data.company.logoAssetId, workspaceId: ctx.workspaceId, scanStatus: 'CLEAN' } });
+      const png = await sharp(await ctx.storage.get('private', asset.storageKey)).resize({ width: 400, height: 200, fit: 'inside', withoutEnlargement: true }).png({ compressionLevel: 9 }).toBuffer({ resolveWithObject: true });
+      const d = await storeDeliverable(ctx, { kind: 'signature-logo', fileName: 'logo.png', body: png.data, mime: 'image/png', bucket: 'public', width: png.info.width, height: png.info.height, validation: { png: true } });
+      return { url: d.publicUrl ?? undefined, width: Math.round(png.info.width / 2), height: Math.round(png.info.height / 2) };
+    });
+  }
+  const company: Company = { ...data.company, logoUrl: data.company.logoUrl ?? gif?.publicUrl ?? staticLogo.url, logoWidth: gif?.width ?? staticLogo.width ?? data.company.logoWidth, logoHeight: gif?.height ?? staticLogo.height ?? data.company.logoHeight };
   const suite = await step(ctx.db, ctx.jobId, 'generate', { employees: data.employees.length, template: data.templateSlug }, () => buildSignatureSuite({ templateSlug: data.templateSlug, company, employees: data.employees, utm: data.utm }));
   await step(ctx.db, ctx.jobId, 'qa', null, async () => {
     const issues = suite.items.flatMap((i) => lintEmailHtml(i.html));

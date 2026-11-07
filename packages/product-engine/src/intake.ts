@@ -12,7 +12,7 @@ const sha256 = (b: Buffer | string) => createHash('sha256').update(b).digest('he
 export class IntakeRejected extends Error {}
 
 /** Spec §6 + Product 1 step 1: size cap, magic bytes, pixel cap, malware scan, re-encode to PNG, metadata stripped. */
-export async function ingestLogoUpload(db: PrismaClient, storage: StorageProvider, a: { workspaceId: string; buf: Buffer; originalName?: string; purpose: 'animated-gif-logo' | 'logo-revival'; minSide: number }) {
+export async function ingestLogoUpload(db: PrismaClient, storage: StorageProvider, a: { workspaceId: string; buf: Buffer; originalName?: string; purpose: 'animated-gif-logo' | 'logo-revival' | 'email-signature-suite'; minSide: number }) {
   const { validateLogo, UploadRejected } = await import('../../video-engine/src/image');
   const scan = await scanUpload(a.buf).catch((e: Error) => {
     throw new IntakeRejected(`Security scan unavailable, please try again shortly (${e.message.slice(0, 60)}).`);

@@ -30,6 +30,7 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 ## Design system & public site (§7, §7.0, §7.1)
 - ✅ v4 vivid tokens, gradient CTAs with glow, glass panels, aurora/grid/noise, reduced-motion, self-hosted fonts
 - ✅ Homepage: AI Visibility hero (spec headline), labeled AI-answer illustration, 3-step strip; AI Visibility first in the nav (Social Autopilot band removed: phase 2, D-21)
+- ✅ Forms keep what the user typed after a server error (React 19 auto-reset avoided; works without JavaScript too); 404 page rendered per request so its scripts carry the CSP nonce
 - ✅ Pages: Home, About, Products, 10 product pages, Pricing, Websites, SEO & Local, AI Visibility (+ free audit + report), AI for business (+ quote form), E-books, 3 industry pages, Guides (3), Contact, FAQ, Login, Register, Privacy, Terms, Refund, Acceptable use, Takedown (+ DMCA form), Cookies, Status, 404/500
 - ✅ Metadata (unique title/description, canonical, OG/Twitter), JSON-LD (Organization, WebSite, Product/Service + Offer from DB, FAQPage, BreadcrumbList, Article, HowTo), sitemap, robots with explicit AI-crawler rules, `llms.txt` generated from the DB
 - 🟠 Light theme tokens exist; theme toggle UI not built · ⬜ generated OG images · ⬜ IndexNow pings · ⬜ Search Console/Bing verification (needs owner tokens) · ⬜ Lighthouse CI budgets · ⬜ command palette, drawers, toasts, sortable/exportable data tables
@@ -50,7 +51,7 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 ## Engine & products (§10–§13)
 - ✅ PostgreSQL queue: SKIP LOCKED claims, leases, heartbeats, backoff, dead-letter, sweeper, per-type concurrency (tested)
 - ✅ Worker process with heartbeat, graceful shutdown, steps/logs/costs; StorageProvider (R2 SigV4 / local dev)
-- ✅ P8 Email Signature Suite: 10 templates, email-HTML linter, CSV import, gallery, ZIP, install guides — engine + worker end-to-end test
+- ✅ P8 Email Signature Suite: 10 table-based templates, email-HTML linter, CSV import with per-row errors + downloadable template, watermarked live previews (first 3 people), signed drafts (no client-trusted inputs), static logo published to the public bucket or the Animated GIF Logo reused, UTM links, unsafe links dropped, gallery with copy buttons, install guides, ZIP — tests incl. ZIP contents; browser-verified
 - ✅ P1 Animated GIF Logo: upload intake (scan + re-encode), 10 styles, cached watermarked 480 px preview job, paid render (1920×1080 GIF, ≤1 MB email GIF, PNG fallback, 10.0 s MP4), ffprobe QC, watermark present in previews / absent in paid files, delivery email, 24 h auto-refund rule — integration tests on real files; customer pages verified in a browser · 🟡 live use needs VPS worker + R2 + Stripe
 - ✅ P2 Logo Revival: engine (classify, 4×, sharpness metric, SSIM-gated traced SVG), 10 s 540p watermarked preview video, 1080p clean delivery, manager approval hold, 3 previews/day — tests on real files · 🟠 ONNX super-resolution model optional (Lanczos fallback per spec)
 - ✅ P3 Logo Generator: 3 screened concepts per brief (pool = all ROI marks + 36 seeded reference motifs), similarity report + name check, ≤640 px forensic-tagged previews, Basic/Professional/Premium packages, sold marks reserved — tests on real files incl. ZIP contents

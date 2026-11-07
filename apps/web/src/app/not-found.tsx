@@ -1,6 +1,9 @@
+import { connection } from 'next/server';
 import { ButtonLink } from '@/components/ui';
 
-export default function NotFound() {
+/** Rendered per request so its scripts carry the CSP nonce (a prerendered 404 would have its scripts blocked). */
+export default async function NotFound() {
+  await connection();
   return (
     <main id="main" className="relative grid min-h-dvh place-items-center overflow-hidden px-6 text-center">
       <div className="roi-aurora" aria-hidden />

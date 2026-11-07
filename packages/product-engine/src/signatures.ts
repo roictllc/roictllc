@@ -33,6 +33,9 @@ export interface Employee {
 
 const esc = (s = '') => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const FONT = "font-family:Arial,Helvetica,sans-serif";
+/** Only http(s) links survive (no javascript:/data: hrefs); images may also be inline PNG/GIF data for previews. */
+const safeHref = (u?: string) => (u && /^https?:\/\//i.test(u) ? u : undefined);
+const safeImg = (u?: string) => (u && (/^https:\/\//i.test(u) || /^data:image\/(png|gif|jpeg);base64,[A-Za-z0-9+/=]+$/.test(u) || (process.env.APP_ENV !== 'production' && /^file:\/\//.test(u))) ? u : undefined);
 const tel = (p: string) => `tel:${p.replace(/[^+\d]/g, '')}`;
 function utm(url: string, on: boolean) {
   if (!on) return url;
@@ -79,7 +82,9 @@ function photoImg(e: Employee, size = 64) {
   return e.photoUrl ? `<img src="${esc(e.photoUrl)}" width="${size}" height="${size}" alt="${esc(e.name)}" style="display:block;border:0;border-radius:${size / 2}px;width:${size}px;height:${size}px">` : '';
 }
 
-export function renderSignature(slug: SignatureTemplateSlug, c: Company, e: Employee, opts: { utm?: boolean } = {}) {
+export function renderSignature(slug: SignatureTemplateSlug, c0: Company, e0: Employee, opts: { utm?: boolean } = {}) {
+  const c: Company = { ...c0, website: safeHref(c0.website), bannerUrl: safeHref(c0.bannerUrl), logoUrl: safeImg(c0.logoUrl), social: Object.fromEntries(Object.entries(c0.social ?? {}).filter(([, u]) => safeHref(u))) };
+  const e: Employee = { ...e0, extraLink: safeHref(e0.extraLink), photoUrl: safeImg(e0.photoUrl) };
   const accent = safeAccent(c.colors[0] ?? '#2A6FDB');
   const accent2 = safeAccent(c.colors[1] ?? accent);
   const name = `<span style="${FONT};font-size:${slug === 'bold-name' ? 20 : 16}px;font-weight:bold;color:#222222">${esc(e.name)}</span>`;
@@ -139,7 +144,8 @@ export function lintEmailHtml(html: string): string[] {
     if (!/\bwidth="\d+"/.test(tag) || !/\bheight="\d+"/.test(tag)) issues.push('Image without width/height attributes.');
     if (!/\balt="/.test(tag)) issues.push('Image without alt text.');
     const src = tag.match(/src="([^"]+)"/)?.[1] ?? '';
-    if (!/^https:\/\//.test(src)) issues.push(`Image source must be a permanent HTTPS URL (${src.slice(0, 40)}).`);
+    const devLocal = process.env.APP_ENV !== 'production' && src.startsWith('file://'); // local storage in development only
+    if (!/^https:\/\//.test(src) && !devLocal) issues.push(`Image source must be a permanent HTTPS URL (${src.slice(0, 40)}).`);
   }
   if (!/<table\b/i.test(html)) issues.push('Layout must use tables.');
   return [...new Set(issues)];

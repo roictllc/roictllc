@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <AppShell user={user} area="Workspace" groups={[
       { items: [{ href: '/dashboard', label: 'Overview' }] },
       { title: 'Grow', items: [{ href: '/dashboard/ai-visibility', label: 'AI Visibility' }, { href: '/dashboard/seo', label: 'SEO & local' }] },
-      { title: 'Create', items: [{ href: '/dashboard/create/animated-gif-logo', label: 'Animated logo' }, { href: '/dashboard/create/logo-revival', label: 'Logo revival' }, { href: '/dashboard/create/logo-generator', label: 'Logo generator' }] },
+      { title: 'Create', items: [{ href: '/dashboard/create/animated-gif-logo', label: 'Animated logo' }, { href: '/dashboard/create/logo-revival', label: 'Logo revival' }, { href: '/dashboard/create/logo-generator', label: 'Logo generator' }, { href: '/dashboard/create/email-signature-suite', label: 'Email signatures' }] },
       { title: 'Build', items: [{ href: '/dashboard/website', label: 'My website' }, { href: '/dashboard/products', label: 'Products & downloads' }, { href: '/dashboard/orders', label: 'Orders' }] },
       { title: 'Account', items: [{ href: '/dashboard/assistant', label: 'ROI assistant' }, { href: '/dashboard/billing', label: 'Billing' }, { href: '/dashboard/support', label: 'Support' }, { href: '/dashboard/settings', label: 'Business & privacy' }] },
     ]}>

@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
  * Logo upload field (Products 1–2): sends the file to /api/uploads/logo (scan + validation happen on the server),
  * then keeps only the returned asset id in a hidden input. Client checks mirror the server limits for fast feedback.
  */
-export function LogoUpload({ product, csrf, minSide, error }: { product: 'animated-gif-logo' | 'logo-revival'; csrf: string; minSide: number; error?: string }) {
+export function LogoUpload({ product, csrf, minSide, error, label = 'Your logo' }: { product: 'animated-gif-logo' | 'logo-revival' | 'email-signature-suite'; csrf: string; minSide: number; error?: string; label?: string }) {
   const [state, setState] = useState<{ status: 'idle' | 'uploading' | 'done' | 'error'; message?: string; assetId?: string; preview?: string; dims?: string }>({ status: 'idle' });
   const input = useRef<HTMLInputElement>(null);
 
@@ -29,7 +29,7 @@ export function LogoUpload({ product, csrf, minSide, error }: { product: 'animat
 
   return (
     <div>
-      <label htmlFor="logo-file" className="mb-1.5 block text-sm font-semibold">Your logo</label>
+      <label htmlFor="logo-file" className="mb-1.5 block text-sm font-semibold">{label}</label>
       <div
         className="flex flex-col items-center gap-3 rounded-[var(--radius-lg)] border-2 border-dashed border-[var(--color-border)] bg-white/[0.02] p-6 text-center transition hover:border-[var(--color-primary)]"
         onDragOver={(e) => e.preventDefault()}

@@ -31,6 +31,14 @@ export async function previewAvailability(slug: CreateSlug): Promise<{ ok: true 
   return { ok: true };
 }
 
+/** Product 8 works without the worker for previews; uploads still need storage. */
+export async function signatureAvailability(): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const product = await db().product.findUnique({ where: { slug: 'email-signature-suite' }, select: { visibility: true } });
+  if (!product || product.visibility === 'HIDDEN') return { ok: false, reason: 'This product is not available.' };
+  if (product.visibility !== 'LIVE' && (await getFlag('previews')) !== 'LIVE') return { ok: false, reason: 'Signature previews open at launch.' };
+  return { ok: true };
+}
+
 export async function workerOnline() {
   const beat = await db().workerHeartbeat.findFirst({ orderBy: { lastBeatAt: 'desc' } });
   return !!beat && Date.now() - beat.lastBeatAt.getTime() < 120_000;
