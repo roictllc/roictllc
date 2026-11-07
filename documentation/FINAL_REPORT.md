@@ -21,7 +21,7 @@ The ROI platform foundation, public site, customer dashboard, staff admin consol
 | Customer browser flow | register → dashboard → built-in assistant answers with sources (a crash in newer Chrome, caused by `scrollIntoView` returning a Promise inside an effect, was found and fixed) |
 | Security headers | per-request CSP nonce, HSTS, `X-Robots-Tag: noindex` on the preview |
 
-What the automated tests cover: money and margin guard, the domain price rule ($14.99 / $15.00 / $15.01 and renewal), AES-GCM, TOTP and recovery codes, Argon2id, lockout, session rotation and reuse detection, tenant isolation (cross-tenant reads and writes refused), append-only audit log, the job queue (leases, retries, dead-letter, sweeper), Stripe webhook signatures, SSRF defences (29 cases), GIF logo rendering and QC, logo revival, logo uniqueness (500 marks, zero near-duplicates), site generator uniqueness, social engine, AI-visibility audit.
+What the automated tests cover: money and margin guard, the domain price rule ($14.99 / $15.00 / $15.01 and renewal), AES-GCM, TOTP and recovery codes, Argon2id, lockout, session rotation and reuse detection, tenant isolation (cross-tenant reads and writes refused), append-only audit log, the job queue (leases, retries, dead-letter, sweeper), Stripe webhook signatures, SSRF defences (29 cases), GIF logo rendering and QC, logo revival, logo uniqueness (500 marks, zero near-duplicates), site generator uniqueness, social engine (kept for phase 2), AI-visibility audit.
 
 ## Deployment status
 - **Database**: Neon project `blue-forest-78059884` (PostgreSQL 18, us-east-1). Tables are created by the first Vercel build (`prisma migrate deploy`, verified above with the real engine).
@@ -34,8 +34,8 @@ What the automated tests cover: money and margin guard, the domain price rule ($
 
 ## Waiting on the owner (AWAITING_CONFIGURATION)
 Connected: PostgreSQL. Not yet connected (each one unlocks the features listed in Admin → Integrations):
-Stripe · Resend email · Cloudflare DNS/Pages · Cloudflare R2 · Turnstile · domain registrar · media worker VPS · Meta (Facebook & Instagram) · TikTok · X · Google (Search Console / Business Profile) · USPTO · local language model (optional) · Sentry.
-Step-by-step: `documentation/OWNER_CHECKLIST.md`. Meta and TikTok app reviews take weeks, so they should be started first.
+Stripe · Resend email · Cloudflare DNS/Pages · Cloudflare R2 · Turnstile · domain registrar · media worker VPS · Google (Search Console / Business Profile) · USPTO · local language model (optional) · Sentry.
+Step-by-step: `documentation/OWNER_CHECKLIST.md`. Social Media Autopilot (and its Meta/TikTok/X approvals) moved to phase 2 at the owner's request (D-21).
 
 ## Not finished yet
 The build order for the remaining work is in `documentation/HANDOFF.md`. In short:
@@ -43,7 +43,6 @@ The build order for the remaining work is in `documentation/HANDOFF.md`. In shor
 - Website publishing and the website editor.
 - Registrar adapters.
 - The SEO crawler and the location-page generator.
-- Social publishing and metrics jobs.
 - Per-client assistant knowledge and the embeddable widget.
 - Staff editors: tickets, campaigns and payouts.
 - Sentry and uptime checks.

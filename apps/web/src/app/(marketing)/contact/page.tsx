@@ -7,7 +7,7 @@ import { Turnstile } from '@/components/turnstile';
 import { contactAction } from '@/server/actions/public';
 import { pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = pageMeta({ title: 'Contact ROI', description: 'Talk to ROI about AI visibility, social media autopilot, websites, SEO or your account. We reply within one business day.', path: '/contact' });
+export const metadata: Metadata = pageMeta({ title: 'Contact ROI', description: 'Talk to ROI about AI visibility, websites, logos, SEO or your account. We reply within one business day.', path: '/contact' });
 
 export default function ContactPage() {
   return (

@@ -10,7 +10,7 @@ See `IMPLEMENTATION_CHECKLIST.md` (✅ items) and `documentation/FINAL_REPORT.md
 2. **Pre-payment preview flows** (P1–P3): upload endpoint → quarantine → scan → preview job; rate limits per verified account; preview pages.
 3. **Registrar adapters** (Porkbun, Namecheap, Dynadot) behind `RegistrarProvider` + domain search UI using `decideDomainPrice`.
 4. **P6 crawler** (multi-page, Lighthouse via Chromium, findings, auto-fix on ROI sites, monthly PDF) and **P7** (Census Gazetteer importer `seed/import-us-places.ts`, location pages through the shingle gate, NAP checks).
-5. **P9 jobs**: publisher (per platform), metrics ingestion (Meta webhooks + polling), model retraining nightly, calendar generation from `planCalendar`.
+5. ~~P9 jobs~~ — Social Media Autopilot moved to phase 2 (D-21); restore from branch `phase2-social-baseline` when the owner restarts it.
 6. **P10**: per-client knowledge upload + embeddable widget; Part B encrypted client keys with PII redaction and spending limits.
 7. **P11**: staff manual-check entry, monthly report PDF.
 8. Staff UIs: ticket threads/replies, e-book upload, manager assignment, payout approvals, campaign editor + Resend webhooks + unsubscribe center, read-only customer preview.

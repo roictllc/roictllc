@@ -6,13 +6,14 @@ import { db } from '@/server/db';
 import { requireUser } from '@/server/session';
 import { assertCan } from '@/server/authz';
 import { refreshIntegrationsAction } from '@/server/actions/admin';
+import { PHASE_2_INTEGRATION_KEYS } from '@roi/integrations';
 
 export const metadata = { title: 'Integrations' };
 
 export default async function IntegrationsPage() {
   const { user } = await requireUser({ roles: ['ADMIN'] });
   await assertCan(user, 'integrations.manage');
-  const list = await db().integration.findMany({ orderBy: [{ status: 'asc' }, { name: 'asc' }] });
+  const list = await db().integration.findMany({ where: { key: { notIn: PHASE_2_INTEGRATION_KEYS } }, orderBy: [{ status: 'asc' }, { name: 'asc' }] });
   const connected = list.filter((i) => i.status === 'CONNECTED').length;
   return (
     <>

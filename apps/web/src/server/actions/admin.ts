@@ -117,11 +117,6 @@ export async function setFlagAction(_: ActionState, form: FormData): Promise<Act
     const stripe = await db().integration.findUnique({ where: { key: 'stripe' } });
     if (stripe?.status !== 'CONNECTED') return { error: 'Checkout can only go LIVE after the Stripe integration passes its live check.' };
   }
-  if (key.startsWith('social.') && v === 'LIVE') {
-    const map: Record<string, string> = { 'social.facebook': 'meta', 'social.instagram': 'meta', 'social.tiktok': 'tiktok', 'social.x': 'x' };
-    const i = await db().integration.findUnique({ where: { key: map[key] } });
-    if (i?.status !== 'CONNECTED') return { error: `Connect ${map[key]} first.` };
-  }
   await db().featureFlag.update({ where: { key }, data: { visibility: v, updatedById: g.user.id } });
   await audit('flag.changed', { actorId: g.user.id, actorRole: g.user.role, targetType: 'FeatureFlag', targetId: key, data: { visibility: v } });
   revalidatePath('/', 'layout');

@@ -7,7 +7,7 @@ export const SITE = {
   url: (process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'https://roictllc.com')).replace(/\/$/, ''),
   email: 'roictllc@gmail.com',
   tagline: 'Your Investment. Our Intelligence. Measurable Growth.',
-  description: 'ROI makes AI assistants like ChatGPT recommend your business, runs your social media on autopilot, and builds the websites, logos and SEO that grow US small businesses.',
+  description: 'ROI makes AI assistants like ChatGPT recommend your business and builds the websites, logos and SEO that grow US small businesses.',
   foundingYear: 2026,
   areaServed: 'United States',
 };
@@ -36,7 +36,7 @@ export const organizationLd = () => ({
   foundingDate: String(SITE.foundingYear),
   areaServed: { '@type': 'Country', name: 'United States' },
   logo: `${SITE.url}/icon.svg`,
-  knowsAbout: ['AI visibility', 'Generative engine optimization', 'Answer engine optimization', 'Local SEO', 'Social media automation', 'Website hosting', 'Logo design'],
+  knowsAbout: ['AI visibility', 'Generative engine optimization', 'Answer engine optimization', 'Local SEO', 'Website hosting', 'Logo design'],
 });
 
 export const websiteLd = () => ({

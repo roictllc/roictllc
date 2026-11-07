@@ -6,7 +6,7 @@
  * enroll 2FA at first sign-in.
  */
 import { createPrisma } from '../src/index';
-import { CATALOG, CATEGORIES } from '../../product-engine/src/catalog';
+import { CATALOG, CATEGORIES, PHASE_2_PRODUCTS } from '../../product-engine/src/catalog';
 import { SIGNATURE_TEMPLATES } from '../../product-engine/src/signature-templates';
 import { PERMISSIONS, ROLES, defaultGrants } from '../../shared-types/src/index';
 import { INTEGRATIONS, missingEnv } from '../../integrations/src/registry';
@@ -30,7 +30,6 @@ export const SETTINGS: Array<{ key: string; value: unknown; description: string 
   { key: 'refund.policy', value: { subscriptionWindowDays: 14, automatedFailureAutoRefund: true, domainFeesRefundable: false }, description: 'Refund rules shown at checkout.' },
   { key: 'affiliate.attributionDays', value: 30, description: 'Last-click attribution window.' },
   { key: 'affiliate.holdDays', value: 45, description: 'Commission hold before payable (refund/chargeback window).' },
-  { key: 'social.livePollSeconds', value: 120, description: 'Polling interval for platforms without webhooks.' },
   { key: 'geo.maxPagesPerMonth', value: 8, description: 'Location pages published per site per month (anti-doorway).' },
   { key: 'privacy.retention', value: { loginAttemptsDays: 90, auditLogYears: 7, assistantDays: 365 }, description: 'Data retention schedule.' },
   { key: 'checkout.consentText', value: 'I agree that delivery begins immediately and accept the Terms and Refund Policy.', description: 'Consent line shown at checkout.' },
@@ -41,10 +40,6 @@ const FLAGS: Array<{ key: string; visibility: 'HIDDEN' | 'COMING_SOON' | 'LIVE';
   { key: 'signup', visibility: 'LIVE', description: 'Public customer registration.' },
   { key: 'ai_visibility.free_audit', visibility: 'LIVE', description: 'Free AI Visibility audit (runs inside ROI, no external API).' },
   { key: 'assistant.public', visibility: 'LIVE', description: 'Built-in ROI assistant on public pages.' },
-  { key: 'social.facebook', visibility: 'HIDDEN', description: 'Facebook Pages connection.' },
-  { key: 'social.instagram', visibility: 'HIDDEN', description: 'Instagram connection.' },
-  { key: 'social.tiktok', visibility: 'HIDDEN', description: 'TikTok connection.' },
-  { key: 'social.x', visibility: 'HIDDEN', description: 'X connection.' },
   { key: 'domains.search', visibility: 'HIDDEN', description: 'Domain search and registration.' },
   { key: 'uploads', visibility: 'HIDDEN', description: 'Customer uploads (needs R2).' },
 ];
@@ -122,20 +117,10 @@ export async function seed(opts: { log?: (s: string) => void } = {}) {
       }
     }
 
-    // Social plans (drafts; admin publishes after setting prices with the margin guard)
-    const social = CATALOG.find((p) => p.slug === 'social-autopilot')!;
-    const socialSpecs: Record<string, { posts: number; platforms: Array<'FACEBOOK' | 'INSTAGRAM' | 'TIKTOK' | 'X'>; images: number; depth: string }> = {
-      starter: { posts: 12, platforms: ['FACEBOOK', 'INSTAGRAM'], images: 12, depth: 'basic' },
-      growth: { posts: 30, platforms: ['FACEBOOK', 'INSTAGRAM', 'TIKTOK', 'X'], images: 30, depth: 'standard' },
-      pro: { posts: 60, platforms: ['FACEBOOK', 'INSTAGRAM', 'TIKTOK', 'X'], images: 60, depth: 'advanced' },
-    };
-    for (const plan of social.plans) {
-      const s = socialSpecs[plan.slug];
-      await prisma.socialPlan.upsert({
-        where: { slug: plan.slug }, update: {},
-        create: { slug: plan.slug, name: plan.name, priceCents: plan.amountCents ?? 0, postsPerMonth: s.posts, platforms: s.platforms, imageCount: s.images, analyticsDepth: s.depth, approvalOptions: ['APPROVE_FIRST', 'AUTO_PUBLISH', 'MANAGER_REVIEW'], published: false },
-      });
-    }
+    // Phase-2 products (owner decision D-21): never shown or sold. Databases seeded before the decision get them hidden.
+    const phase2 = await prisma.product.updateMany({ where: { slug: { in: PHASE_2_PRODUCTS.map((p) => p.slug) }, visibility: { not: 'HIDDEN' } }, data: { visibility: 'HIDDEN' } });
+    for (let i = 0; i < phase2.count; i++) inc('phase2Hidden');
+    await prisma.productPlan.updateMany({ where: { product: { slug: { in: PHASE_2_PRODUCTS.map((p) => p.slug) } } }, data: { published: false } });
 
     // Integrations (status computed from the current environment; live checks run from /admin/integrations and the worker)
     for (const d of INTEGRATIONS) {
@@ -178,8 +163,13 @@ export async function seed(opts: { log?: (s: string) => void } = {}) {
     const src = (await prisma.knowledgeSource.findFirst({ where: { workspaceId: null, name: 'ROI public knowledge' } })) ??
       (await prisma.knowledgeSource.create({ data: { name: 'ROI public knowledge', kind: 'SYSTEM', audience: 'CUSTOMER' } }));
     const { createHash } = await import('node:crypto');
-    for (const doc of ROI_KNOWLEDGE()) {
-      const checksum = createHash('sha256').update(doc.content).digest('hex');
+    const current = ROI_KNOWLEDGE().map((doc) => ({ ...doc, checksum: createHash('sha256').update(doc.content).digest('hex') }));
+    // The system source is generated, never hand-edited: documents that no longer match the catalog (changed copy,
+    // phase-2 products) are removed so the assistant never answers from stale facts.
+    const pruned = await prisma.knowledgeDocument.deleteMany({ where: { sourceId: src.id, checksum: { notIn: current.map((d) => d.checksum) } } });
+    for (let i = 0; i < pruned.count; i++) inc('knowledgeDocsPruned');
+    for (const doc of current) {
+      const checksum = doc.checksum;
       const exists = await prisma.knowledgeDocument.findUnique({ where: { sourceId_checksum: { sourceId: src.id, checksum } } });
       if (exists) continue;
       const d = await prisma.knowledgeDocument.create({ data: { sourceId: src.id, title: doc.title, url: doc.url, content: doc.content, checksum } });

@@ -1,6 +1,6 @@
 # ROI — one platform for growth
 
-ROI LLC's platform: public marketing site (SEO/GEO/AEO), customer workspaces, admin / PM / manager control center, 11 products, payments, domains & hosting, social autopilot, built-in AI assistant (no external API), finance, support and email — built to the master spec v4.
+ROI LLC's platform: public marketing site (SEO/GEO/AEO), customer workspaces, admin / PM / manager control center, 10 products (Social Media Autopilot is phase 2), payments, domains & hosting, social autopilot, built-in AI assistant (no external API), finance, support and email — built to the master spec v4.
 
 ## Monorepo
 ```

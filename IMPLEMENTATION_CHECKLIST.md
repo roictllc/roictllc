@@ -1,13 +1,13 @@
 # IMPLEMENTATION CHECKLIST (spec v4)
 
-Legend: ✅ built + automated test passes · 🟡 built, live use waits for an owner integration (`AWAITING_CONFIGURATION`, feature hidden/coming soon) · 🟠 partially built (see note) · ⬜ not built yet (see HANDOFF.md)
+Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes · 🟡 built, live use waits for an owner integration (`AWAITING_CONFIGURATION`, feature hidden/coming soon) · 🟠 partially built (see note) · ⬜ not built yet (see HANDOFF.md)
 
 ## Foundation (§4, §5, §23)
 - ✅ Monorepo (apps/web, apps/worker, 14 packages, infrastructure, documentation)
 - ✅ PostgreSQL schema: 137 models, snake_case tables, integer cents, timestamptz, FK indexes, soft delete — baseline migration + platform guards (D-12)
 - ✅ Additive-only migration applier with Prisma bookkeeping; destructive SQL refused
 - ✅ `npm run db:check` (OK/FAILED, no credentials printed) · ✅ `/api/health` (DB, queue, worker heartbeat, integrations)
-- ✅ Idempotent seed (catalog, 11 products, 19 plans, roles/permissions, integrations, flags, settings, templates, legal docs, states, assistant KB); never overwrites admin edits; no fake customers
+- ✅ Idempotent seed (catalog, 10 launch products + 1 phase-2 product kept hidden, 16 plans, roles/permissions, integrations, flags, settings, templates, legal docs, states, assistant KB); never overwrites admin edits; no fake customers
 - ✅ Tenant isolation extension + cross-tenant tests · ✅ append-only audit log (DB trigger) + test
 - 🟡 Neon production database — created by the first Vercel build (`prisma migrate deploy`, verified with the real engine in CI), see FINAL_REPORT
 
@@ -21,7 +21,7 @@ Legend: ✅ built + automated test passes · 🟡 built, live use waits for an o
 - ✅ Strict CSP with per-request nonces, HSTS, frame-ancestors none, Referrer/Permissions/COOP/CORP
 - ✅ SSRF-safe fetch (connect-time IP validation, redirects re-checked, size/time caps, robots) — 29 tests
 - ✅ Upload validation (magic bytes, size, pixel cap, re-encode, EICAR) in engines · 🟡 ClamAV daemon in Docker Compose (needs VPS)
-- ✅ AES-256-GCM for integration credentials/social tokens/2FA secrets (tested)
+- ✅ AES-256-GCM for integration credentials/2FA secrets (tested)
 - ✅ Stripe webhook signature verification on raw body + idempotent event storage (tested)
 - 🟠 Admin read-only customer preview (impersonation model + grant table exist; UI not built)
 - ✅ Privacy export (JSON) + deletion request (ticket with legal timelines)
@@ -29,14 +29,14 @@ Legend: ✅ built + automated test passes · 🟡 built, live use waits for an o
 
 ## Design system & public site (§7, §7.0, §7.1)
 - ✅ v4 vivid tokens, gradient CTAs with glow, glass panels, aurora/grid/noise, reduced-motion, self-hosted fonts
-- ✅ Homepage: AI Visibility hero (spec headline), labeled AI-answer illustration, 3-step strip, Social Autopilot band with 4 connect buttons; both first in the nav
-- ✅ Pages: Home, About, Products, 11 product pages, Pricing, Websites, SEO & Local, Social media, AI Visibility (+ free audit + report), AI for business (+ quote form), E-books, 3 industry pages, Guides (3), Contact, FAQ, Login, Register, Privacy, Terms, Refund, Acceptable use, Takedown (+ DMCA form), Cookies, Status, 404/500
+- ✅ Homepage: AI Visibility hero (spec headline), labeled AI-answer illustration, 3-step strip; AI Visibility first in the nav (Social Autopilot band removed: phase 2, D-21)
+- ✅ Pages: Home, About, Products, 10 product pages, Pricing, Websites, SEO & Local, AI Visibility (+ free audit + report), AI for business (+ quote form), E-books, 3 industry pages, Guides (3), Contact, FAQ, Login, Register, Privacy, Terms, Refund, Acceptable use, Takedown (+ DMCA form), Cookies, Status, 404/500
 - ✅ Metadata (unique title/description, canonical, OG/Twitter), JSON-LD (Organization, WebSite, Product/Service + Offer from DB, FAQPage, BreadcrumbList, Article, HowTo), sitemap, robots with explicit AI-crawler rules, `llms.txt` generated from the DB
 - 🟠 Light theme tokens exist; theme toggle UI not built · ⬜ generated OG images · ⬜ IndexNow pings · ⬜ Search Console/Bing verification (needs owner tokens) · ⬜ Lighthouse CI budgets · ⬜ command palette, drawers, toasts, sortable/exportable data tables
 
 ## Dashboards (§8)
-- ✅ Control Center (ADMIN/PM/MANAGER with permission-filtered nav + service-layer checks): overview (live KPIs), finance (ledger-derived, reconciliation), products & pricing (versioned prices, live margin guard, cost model, copy, visibility gated by integrations), orders, customers, subscriptions, jobs monitor (retry/cancel), websites & domains, social, AI visibility, e-books (list), support (list), moderation & takedowns, email marketing (stats), affiliates, assistant knowledge, integrations (live checks), users & roles (create staff, suspend, role change, permission matrix toggles), feature flags, settings, audit log
-- ✅ Customer workspace: overview, orders, downloads (signed URLs), website, SEO, social command center (connect, Full Autopilot consent, pause/kill, exact publish times, metrics with source + age, live refresh), AI Visibility (score, tracked questions, mention rate), assistant, billing (portal), support (open tickets), business identity, devices, export/delete
+- ✅ Control Center (ADMIN/PM/MANAGER with permission-filtered nav + service-layer checks): overview (live KPIs), finance (ledger-derived, reconciliation), products & pricing (versioned prices, live margin guard, cost model, copy, visibility gated by integrations), orders, customers, subscriptions, jobs monitor (retry/cancel), websites & domains, AI visibility, e-books (list), support (list), moderation & takedowns, email marketing (stats), affiliates, assistant knowledge, integrations (live checks), users & roles (create staff, suspend, role change, permission matrix toggles), feature flags, settings, audit log
+- ✅ Customer workspace: overview, orders, downloads (signed URLs), website, SEO, AI Visibility (score, tracked questions, mention rate), assistant, billing (portal), support (open tickets), business identity, devices, export/delete
 - ✅ Affiliate dashboard (link, code, commissions, payouts)
 - 🟠 Ticket threads/replies UI, e-book upload form, campaign editor, payout approval UI, manager assignment UI — models + lists exist, editors not built
 
@@ -58,7 +58,7 @@ Legend: ✅ built + automated test passes · 🟡 built, live use waits for an o
 - ✅ P5 Site generator (22 industry packs, quality gate, ≤5 s, uniqueness across 100 sites) — 🟠 publish pipeline (Cloudflare Pages) + editor/rollback not built; contact-form endpoint ✅
 - 🟠 P6 Managed SEO: SSRF-safe fetch + AI-readiness checks exist; multi-page crawler, Lighthouse, reports not built
 - 🟠 P7 GEO: shingle gate exists; Census importer, location pages, NAP checks not built
-- ✅ P9 Social engine: OAuth (Meta/TikTok/X with PKCE), engagement rate, ridge regression, Thompson sampling, captions with claim filters, 30-day planner (tested); connect/callback routes ✅ — 🟡 platforms hidden until approvals; ⬜ publisher + insights ingestion jobs
+- ⏸ P9 Social Media Autopilot: moved to phase 2 by the owner (DECISIONS D-21). Engine package kept and tested (OAuth/PKCE, engagement model, Thompson sampling, claim filters); UI preserved on branch `phase2-social-baseline`.
 - 🟠 P10 Part A assistant engine ✅ (global KB); per-client KB upload + embeddable widget + Part B (client keys) not built
 - ✅ P11 AI Visibility free audit LIVE (7 categories, prioritized fixes, shareable report, email when configured); customer tracked questions ✅; staff manual-check entry UI + monthly report ⬜
 - ✅ Built-in assistant: retrieval (Postgres FTS), intents, permission-scoped read-only tools as the asking user, citations, logging, refusal

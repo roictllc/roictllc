@@ -10,7 +10,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <AppShell user={user} area="Workspace" groups={[
       { items: [{ href: '/dashboard', label: 'Overview' }] },
-      { title: 'Grow', items: [{ href: '/dashboard/ai-visibility', label: 'AI Visibility' }, { href: '/dashboard/social', label: 'Social command center' }, { href: '/dashboard/seo', label: 'SEO & local' }] },
+      { title: 'Grow', items: [{ href: '/dashboard/ai-visibility', label: 'AI Visibility' }, { href: '/dashboard/seo', label: 'SEO & local' }] },
       { title: 'Build', items: [{ href: '/dashboard/website', label: 'My website' }, { href: '/dashboard/products', label: 'Products & downloads' }, { href: '/dashboard/orders', label: 'Orders' }] },
       { title: 'Account', items: [{ href: '/dashboard/assistant', label: 'ROI assistant' }, { href: '/dashboard/billing', label: 'Billing' }, { href: '/dashboard/support', label: 'Support' }, { href: '/dashboard/settings', label: 'Business & privacy' }] },
     ]}>

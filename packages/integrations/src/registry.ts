@@ -75,21 +75,6 @@ export const INTEGRATIONS: IntegrationDef[] = [
     ownerStep: 'Rent a Linux VPS (≥ 2 vCPU / 4 GB, ~$10–25/month) and add its SSH details.',
   },
   {
-    key: 'meta', name: 'Meta (Facebook & Instagram)', requiredEnv: ['META_APP_ID', 'META_APP_SECRET'],
-    unlocks: ['Facebook Pages & Instagram posting and insights'],
-    ownerStep: 'Create a Meta developer app; complete Business Verification and App Review for publishing permissions.',
-  },
-  {
-    key: 'tiktok', name: 'TikTok', requiredEnv: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'],
-    unlocks: ['TikTok posting (after TikTok’s Content Posting API audit)'],
-    ownerStep: 'Create a TikTok developer app and request the Content Posting API audit.',
-  },
-  {
-    key: 'x', name: 'X (Twitter)', requiredEnv: ['X_CLIENT_ID', 'X_CLIENT_SECRET'],
-    unlocks: ['X posting (pay-per-use API credits)'],
-    ownerStep: 'Create an X developer app and buy API credits.',
-  },
-  {
     key: 'google', name: 'Google (Search Console / Business Profile)', requiredEnv: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
     unlocks: ['Measured keyword data', 'Business Profile checks'],
     ownerStep: 'Create an OAuth client in Google Cloud and verify the consent screen.',
@@ -125,3 +110,23 @@ export async function checkIntegration(def: IntegrationDef, env: NodeJS.ProcessE
     return { status: 'ERROR' as const, missing, detail: (e as Error).name === 'AbortError' ? 'Timed out' : 'Check failed' };
   }
 }
+
+/** Social platforms belong to Social Media Autopilot, moved to phase 2 by the owner (DECISIONS D-21). Not checked or shown. */
+export const PHASE_2_INTEGRATIONS: IntegrationDef[] = [
+  {
+    key: 'meta', name: 'Meta (Facebook & Instagram)', requiredEnv: ['META_APP_ID', 'META_APP_SECRET'],
+    unlocks: ['Facebook Pages & Instagram posting and insights'],
+    ownerStep: 'Create a Meta developer app; complete Business Verification and App Review for publishing permissions.',
+  },
+  {
+    key: 'tiktok', name: 'TikTok', requiredEnv: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'],
+    unlocks: ['TikTok posting (after TikTok’s Content Posting API audit)'],
+    ownerStep: 'Create a TikTok developer app and request the Content Posting API audit.',
+  },
+  {
+    key: 'x', name: 'X (Twitter)', requiredEnv: ['X_CLIENT_ID', 'X_CLIENT_SECRET'],
+    unlocks: ['X posting (pay-per-use API credits)'],
+    ownerStep: 'Create an X developer app and buy API credits.',
+  },
+];
+export const PHASE_2_INTEGRATION_KEYS = PHASE_2_INTEGRATIONS.map((d) => d.key);

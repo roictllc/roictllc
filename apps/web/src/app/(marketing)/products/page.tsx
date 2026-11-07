@@ -5,14 +5,14 @@ import { JsonLd } from '@/components/json-ld';
 import { listPublicProducts, priceLabel } from '@/server/catalog';
 import { breadcrumbLd, pageMeta, SITE } from '@/lib/seo';
 
-export const metadata: Metadata = pageMeta({ title: 'Products — AI visibility, social autopilot, websites, logos & SEO', description: 'Every ROI product in one place: AI Visibility, Social Media Autopilot, websites with hosting, managed SEO, local optimization, animated logos, logo generator, email signatures, e-books and AI integration.', path: '/products' });
+export const metadata: Metadata = pageMeta({ title: 'Products — AI visibility, websites, logos & SEO', description: 'Every ROI product in one place: AI Visibility, websites with hosting, managed SEO, local optimization, animated logos, logo generator, email signatures, e-books and AI integration.', path: '/products' });
 
 export default async function ProductsIndex() {
   const products = await listPublicProducts();
   const groups = [...new Map(products.map((p) => [p.category.slug, p.category.name])).entries()];
   return (
     <Container className="py-16">
-      <SectionHeading eyebrow="Products" title="Everything ROI builds and runs for you" intro="ROI is one platform with eleven products. Each runs on our own engines, shows progress live in your dashboard, and lists its real price." />
+      <SectionHeading eyebrow="Products" title="Everything ROI builds and runs for you" intro="ROI is one platform with ten products. Each runs on our own engines, shows progress live in your dashboard, and lists its real price." />
       {groups.map(([slug, name]) => (
         <section key={slug} className="mt-14" aria-labelledby={`cat-${slug}`}>
           <h2 id={`cat-${slug}`} className="font-display text-2xl font-semibold">{name}</h2>

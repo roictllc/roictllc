@@ -63,29 +63,6 @@ export const CATALOG: SeedProduct[] = [
     workflow: ['audit-crawl', 'score', 'fix-plan', 'implement', 'track-questions', 'monthly-report'],
   },
   {
-    number: 9, slug: 'social-autopilot', name: 'Social Media Autopilot', category: 'social',
-    tagline: 'Connect Instagram, TikTok, Facebook and X once. ROI posts for you.',
-    shortDescription: 'ROI studies your market, plans the calendar, creates on-brand posts, publishes at the best times and shows results live.',
-    longDescription:
-      'Link your accounts with one click each. ROI learns from your own post history and your industry’s benchmarks, builds a 30-day calendar, generates branded images and captions, and publishes on autopilot — or asks you first, if you prefer. Your command center shows exactly when ROI posted and how each post is performing, with the age of every number.',
-    answerFirst:
-      'Social Media Autopilot connects your Instagram, TikTok, Facebook and X accounts once, then ROI plans, creates and publishes posts for you. It learns which formats, times and topics earn engagement for your account and industry, and shows live results with clear data ages. You can switch to approve-first or pause at any time.',
-    kind: 'SUBSCRIPTION', deliveryMode: 'AUTOMATED', requiredIntegrations: ['stripe', 'meta', 'tiktok', 'x', 'r2', 'worker'], taxCode: 'txcd_10103000',
-    honesty: 'ROI optimizes for engagement but never promises specific results. Platform data arrives with delays; every metric shows its source and age.',
-    plans: [
-      { slug: 'starter', name: 'Starter', amountCents: 4900, interval: 'MONTH', published: false, features: ['12 posts / month', '2 platforms', 'Approve-first or Autopilot'] },
-      { slug: 'growth', name: 'Growth', amountCents: 9900, interval: 'MONTH', isDefault: true, published: false, features: ['30 posts / month', 'All 4 platforms', 'Best-time learning', 'Live command center'] },
-      { slug: 'pro', name: 'Pro', amountCents: 19900, interval: 'MONTH', published: false, features: ['60 posts / month', 'All 4 platforms', 'Manager review option', 'Monthly strategy report'] },
-    ],
-    faq: [
-      { q: 'Do I ever have to post again?', a: 'Not if you choose Full Autopilot. ROI plans, creates and publishes on its own after you record your consent. You can switch to approve-first, pause or stop at any time.' },
-      { q: 'Does ROI like, follow or comment on my behalf?', a: 'No. ROI only publishes your posts and reads their metrics through each platform’s official API. It never automates likes, follows or comments.' },
-      { q: 'How “live” is the engagement data?', a: 'Facebook and Instagram can push updates; other platforms are checked on a short schedule. Every number shows where it came from and how old it is.' },
-    ],
-    cost: { computeSecondsExpected: 600, storageMillicents: 2000, socialApiMillicentsPerPost: 20_000, postsPerPeriod: 30, supportAllowanceCents: 500, refundAllowanceBps: 300 },
-    workflow: ['connect-accounts', 'brand-kit', 'choose-mode', 'plan-calendar', 'generate', 'approve-or-autopilot', 'publish', 'measure', 'learn'],
-  },
-  {
     number: 1, slug: 'animated-gif-logo', name: 'Animated GIF Logo', category: 'branding',
     tagline: 'Turn your logo into a smooth looping animation — free 10-second reveal video included.',
     shortDescription: 'Upload your logo, pick an animation style, preview it free, and get a 1080p GIF, an email-ready GIF and an MP4 reveal.',
@@ -241,9 +218,38 @@ export const CATALOG: SeedProduct[] = [
 
 export const CATEGORIES = [
   { slug: 'ai', name: 'AI & Visibility', sortOrder: 1 },
-  { slug: 'social', name: 'Social Media', sortOrder: 2 },
   { slug: 'websites', name: 'Websites & Hosting', sortOrder: 3 },
   { slug: 'growth', name: 'SEO & Local', sortOrder: 4 },
   { slug: 'branding', name: 'Branding', sortOrder: 5 },
   { slug: 'library', name: 'Library', sortOrder: 6 },
 ] as const;
+
+/**
+ * Owner decision 2026-11-06 (DECISIONS D-21): Social Media Autopilot (Product 9) moves to a second phase. It is not
+ * seeded, sold, shown or linked. The definition is kept here so phase 2 can move it back into CATALOG.
+ */
+export const PHASE_2_PRODUCTS: SeedProduct[] = [
+  {
+    number: 9, slug: 'social-autopilot', name: 'Social Media Autopilot', category: 'social',
+    tagline: 'Connect Instagram, TikTok, Facebook and X once. ROI posts for you.',
+    shortDescription: 'ROI studies your market, plans the calendar, creates on-brand posts, publishes at the best times and shows results live.',
+    longDescription:
+      'Link your accounts with one click each. ROI learns from your own post history and your industry’s benchmarks, builds a 30-day calendar, generates branded images and captions, and publishes on autopilot — or asks you first, if you prefer. Your command center shows exactly when ROI posted and how each post is performing, with the age of every number.',
+    answerFirst:
+      'Social Media Autopilot connects your Instagram, TikTok, Facebook and X accounts once, then ROI plans, creates and publishes posts for you. It learns which formats, times and topics earn engagement for your account and industry, and shows live results with clear data ages. You can switch to approve-first or pause at any time.',
+    kind: 'SUBSCRIPTION', deliveryMode: 'AUTOMATED', requiredIntegrations: ['stripe', 'meta', 'tiktok', 'x', 'r2', 'worker'], taxCode: 'txcd_10103000',
+    honesty: 'ROI optimizes for engagement but never promises specific results. Platform data arrives with delays; every metric shows its source and age.',
+    plans: [
+      { slug: 'starter', name: 'Starter', amountCents: 4900, interval: 'MONTH', published: false, features: ['12 posts / month', '2 platforms', 'Approve-first or Autopilot'] },
+      { slug: 'growth', name: 'Growth', amountCents: 9900, interval: 'MONTH', isDefault: true, published: false, features: ['30 posts / month', 'All 4 platforms', 'Best-time learning', 'Live command center'] },
+      { slug: 'pro', name: 'Pro', amountCents: 19900, interval: 'MONTH', published: false, features: ['60 posts / month', 'All 4 platforms', 'Manager review option', 'Monthly strategy report'] },
+    ],
+    faq: [
+      { q: 'Do I ever have to post again?', a: 'Not if you choose Full Autopilot. ROI plans, creates and publishes on its own after you record your consent. You can switch to approve-first, pause or stop at any time.' },
+      { q: 'Does ROI like, follow or comment on my behalf?', a: 'No. ROI only publishes your posts and reads their metrics through each platform’s official API. It never automates likes, follows or comments.' },
+      { q: 'How “live” is the engagement data?', a: 'Facebook and Instagram can push updates; other platforms are checked on a short schedule. Every number shows where it came from and how old it is.' },
+    ],
+    cost: { computeSecondsExpected: 600, storageMillicents: 2000, socialApiMillicentsPerPost: 20_000, postsPerPeriod: 30, supportAllowanceCents: 500, refundAllowanceBps: 300 },
+    workflow: ['connect-accounts', 'brand-kit', 'choose-mode', 'plan-calendar', 'generate', 'approve-or-autopilot', 'publish', 'measure', 'learn'],
+  },
+];

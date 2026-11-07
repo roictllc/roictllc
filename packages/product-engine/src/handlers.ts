@@ -37,7 +37,7 @@ export async function storeDeliverable(ctx: HandlerContext, f: { kind: string; f
   });
 }
 
-async function finishOrderItem(ctx: HandlerContext, productId: string, costMillicents: number, startedAt: number) {
+export async function finishOrderItem(ctx: HandlerContext, productId: string, costMillicents: number, startedAt: number) {
   const seconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
   const compute = seconds * ctx.computeRateMillicentsPerS;
   await ctx.db.productionCost.create({ data: { productId, orderItemId: ctx.orderItemId, jobId: ctx.jobId, kind: 'COMPUTE', amountMillicents: compute + costMillicents, details: { seconds, rate: ctx.computeRateMillicentsPerS } } });
@@ -49,7 +49,7 @@ async function finishOrderItem(ctx: HandlerContext, productId: string, costMilli
   return compute + costMillicents;
 }
 
-async function inputsFor(ctx: HandlerContext) {
+export async function inputsFor(ctx: HandlerContext) {
   if (!ctx.orderItemId) return ctx.payload.inputs as Record<string, unknown>;
   const input = await ctx.db.productInput.findUnique({ where: { orderItemId: ctx.orderItemId } });
   return (input?.data ?? ctx.payload.inputs) as Record<string, unknown>;

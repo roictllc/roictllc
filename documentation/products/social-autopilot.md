@@ -1,3 +1,5 @@
+> **Phase 2.** Moved out of the launch scope by the owner on 2026-11-06 (DECISIONS D-21). Nothing below is visible to customers until phase 2 restores it from branch `phase2-social-baseline`.
+
 # Product 9 — Social Media Autopilot
 
 > Social Media Autopilot connects your Instagram, TikTok, Facebook and X accounts once, then ROI plans, creates and publishes posts for you. It learns which formats, times and topics earn engagement for your account and industry, and shows live results with clear data ages. You can switch to approve-first or pause at any time.

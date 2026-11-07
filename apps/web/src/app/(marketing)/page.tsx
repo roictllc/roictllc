@@ -4,17 +4,15 @@ import { ButtonLink, Card, Container, Pill, SectionHeading } from '@/components/
 import { JsonLd } from '@/components/json-ld';
 import { listPublicProducts, priceLabel } from '@/server/catalog';
 import { faqLd, pageMeta } from '@/lib/seo';
-import { PlatformChip } from '@/components/platform-chip';
 
 export const metadata: Metadata = pageMeta({
-  title: 'ROI — Get recommended by ChatGPT & AI search. Social media on autopilot.',
-  description: 'ROI makes ChatGPT, Gemini, Claude and Perplexity understand and surface your business, posts to Instagram, TikTok, Facebook and X for you, and builds your website, logo and SEO.',
+  title: 'ROI — Get recommended by ChatGPT & AI search',
+  description: 'ROI makes ChatGPT, Gemini, Claude and Perplexity understand and surface your business, and builds the website, logo and SEO that win you customers.',
   path: '/',
 });
 
 const HOME_FAQ = [
   { q: 'How do I get ChatGPT to recommend my business?', a: 'AI assistants recommend businesses they can clearly identify and trust. ROI audits how AI engines read your business, fixes structured data, entity facts, answer-ready content and listings, then tracks how often engines mention you for real customer questions. No one can force an AI to recommend a business; we improve the signals it relies on.' },
-  { q: 'What does “social media on autopilot” mean?', a: 'You connect Instagram, TikTok, Facebook and X once. ROI studies your market and your own results, plans a 30-day calendar, creates on-brand posts and publishes them at the best times. You can switch to approve-first or pause at any time.' },
   { q: 'Do you guarantee results?', a: 'No. Nobody can honestly promise rankings, AI mentions or engagement. ROI shows measured data with its source and age, labels estimates as estimates, and reports what changed every month.' },
   { q: 'Who is ROI for?', a: 'Small and growing US businesses — dentists, contractors, agencies, salons, restaurants, law and accounting firms — that want more customers without hiring a marketing team.' },
 ];
@@ -84,34 +82,6 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      {/* ── Social Autopilot band ── */}
-      <section className="relative overflow-hidden">
-        <Container className="py-12">
-          <div className="roi-gradient-border p-1">
-            <div className="grid gap-10 rounded-[calc(var(--radius-xl)-2px)] bg-[linear-gradient(135deg,rgb(11_16_36),rgb(20_10_40))] p-8 md:grid-cols-[1.2fr_1fr] md:p-12">
-              <div>
-                <Pill tone="violet" className="mb-5">Social Autopilot</Pill>
-                <h2 className="font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl">Connect your Instagram, TikTok, Facebook and X once. <span className="roi-gradient-text">ROI studies your market, posts for you</span> and shows the results live.</h2>
-                <p className="mt-4 text-lg text-[var(--color-muted)]">No more posting. ROI learns which formats, topics and times earn engagement for your business, then plans, creates and publishes — or asks first, if you prefer.</p>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <ButtonLink href="/social-media" size="lg">Put my social on autopilot</ButtonLink>
-                </div>
-              </div>
-              <div className="flex flex-col justify-center gap-3" id="connect">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">Connect in one click each</p>
-                {(['INSTAGRAM', 'TIKTOK', 'FACEBOOK', 'X'] as const).map((p) => (
-                  <Link key={p} href={`/register?next=${encodeURIComponent('/dashboard/social')}`} className="group flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-white/5 px-4 py-3 transition hover:border-[var(--color-primary)] hover:bg-white/10">
-                    <PlatformChip platform={p} />
-                    <span className="text-sm text-[var(--color-muted)] group-hover:text-[var(--color-text)]">Connect →</span>
-                  </Link>
-                ))}
-                <p className="text-xs text-[var(--color-muted)]">Official platform APIs only. ROI never likes, follows or comments for you.</p>
-              </div>
-            </div>
-          </div>
-        </Container>
-      </section>
-
       {/* ── Products ── */}
       <section>
         <Container className="py-16">
@@ -122,7 +92,7 @@ export default async function HomePage() {
                 <Link href={`/products/${p.slug}`} className="group block h-full">
                   <Card className="flex h-full flex-col transition group-hover:-translate-y-0.5 group-hover:border-[var(--color-primary)]">
                     <div className="flex items-center justify-between">
-                      <Pill tone={p.category.slug === 'ai' || p.category.slug === 'social' ? 'violet' : 'info'}>{p.category.name}</Pill>
+                      <Pill tone={p.category.slug === 'ai' ? 'violet' : 'info'}>{p.category.name}</Pill>
                       <span className="font-mono text-sm text-[var(--color-muted)]">{priceLabel(p)}</span>
                     </div>
                     <h3 className="mt-4 font-display text-xl font-semibold">{p.name}</h3>
@@ -142,7 +112,7 @@ export default async function HomePage() {
           {[
             ['Measured, not promised', 'Every number shows where it came from and how old it is. Estimates are labeled as estimates.'],
             ['Built in, not bolted on', 'ROI’s assistant, generators and analysis run on our own engines — no surprise AI bills.'],
-            ['You stay in control', 'Approve-first or autopilot, pause anytime, export your data, and own your domain.'],
+            ['You stay in control', 'Approve changes, cancel anytime, export your data, and own your domain.'],
           ].map(([t, d]) => (
             <Card key={t}>
               <h3 className="font-display text-lg font-semibold">{t}</h3>

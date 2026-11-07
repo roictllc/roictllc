@@ -19,7 +19,6 @@ ${products.map((p) => `- [${p.name}](${SITE.url}/products/${p.slug}): ${p.shortD
 
 ## Key pages
 - [AI Visibility](${SITE.url}/ai-visibility): free audit of how AI assistants understand a business.
-- [Social Media Autopilot](${SITE.url}/social-media): connect Instagram, TikTok, Facebook and X once; ROI posts for you.
 - [Pricing](${SITE.url}/pricing)
 - [FAQ](${SITE.url}/faq)
 

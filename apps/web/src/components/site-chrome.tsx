@@ -4,7 +4,6 @@ import { getSession, homeFor } from '@/server/session';
 
 const NAV = [
   { href: '/ai-visibility', label: 'AI Visibility', highlight: true },
-  { href: '/social-media', label: 'Social Autopilot', highlight: true },
   { href: '/products', label: 'Products' },
   { href: '/websites', label: 'Websites' },
   { href: '/pricing', label: 'Pricing' },
@@ -46,7 +45,7 @@ export async function SiteHeader() {
 }
 
 const FOOTER = [
-  { title: 'Grow', links: [['AI Visibility', '/ai-visibility'], ['Social Autopilot', '/social-media'], ['SEO & Local', '/seo-local'], ['AI for business', '/ai-for-business']] },
+  { title: 'Grow', links: [['AI Visibility', '/ai-visibility'], ['SEO & Local', '/seo-local'], ['AI for business', '/ai-for-business']] },
   { title: 'Build', links: [['Websites & hosting', '/websites'], ['Animated GIF logo', '/products/animated-gif-logo'], ['Logo generator', '/products/logo-generator'], ['Email signatures', '/products/email-signature-suite'], ['E-book library', '/ebooks']] },
   { title: 'Company', links: [['About', '/about'], ['Pricing', '/pricing'], ['Guides', '/guides'], ['FAQ', '/faq'], ['Contact', '/contact'], ['Status', '/status']] },
   { title: 'Legal', links: [['Privacy', '/legal/privacy'], ['Terms', '/legal/terms'], ['Refund policy', '/legal/refund-policy'], ['Acceptable use', '/legal/acceptable-use'], ['Takedown (DMCA)', '/legal/takedown'], ['Cookies', '/legal/cookies']] },

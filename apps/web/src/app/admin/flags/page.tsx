@@ -14,7 +14,7 @@ export default async function FlagsPage() {
   const flags = await db().featureFlag.findMany({ orderBy: { key: 'asc' } });
   return (
     <>
-      <PageHeader title="Feature flags" intro="HIDDEN, COMING SOON or LIVE. Flags that depend on an integration (checkout, social platforms) refuse LIVE until that integration passes its live check." />
+      <PageHeader title="Feature flags" intro="HIDDEN, COMING SOON or LIVE. Flags that depend on an integration (such as checkout) refuse LIVE until that integration passes its live check." />
       <Table head={['Flag', 'Description', 'State', 'Change']}
         rows={flags.map((f) => [
           <code key="k" className="font-mono text-xs text-[var(--color-primary)]">{f.key}</code>,

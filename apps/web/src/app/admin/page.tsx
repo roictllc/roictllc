@@ -4,6 +4,7 @@ import { Card, PageHeader, Pill, Stat, statusTone, Table } from '@/components/ui
 import { db } from '@/server/db';
 import { requireUser } from '@/server/session';
 import { can, accessibleWorkspaceIds } from '@/server/authz';
+import { PHASE_2_INTEGRATION_KEYS } from '@roi/integrations';
 
 export const metadata = { title: 'Overview' };
 
@@ -21,7 +22,7 @@ export default async function AdminOverview() {
     db().automationJob.count({ where: { status: { in: ['PENDING', 'PROCESSING'] }, ...(ws === null ? {} : { workspaceId: { in: ws } }) } }),
     db().automationJob.count({ where: { status: { in: ['FAILED', 'DEAD'] }, ...(ws === null ? {} : { workspaceId: { in: ws } }) } }),
     db().workerHeartbeat.findFirst({ orderBy: { lastBeatAt: 'desc' } }),
-    db().integration.findMany({ orderBy: { name: 'asc' } }),
+    db().integration.findMany({ where: { key: { notIn: PHASE_2_INTEGRATION_KEYS } }, orderBy: { name: 'asc' } }),
     db().order.findMany({ where: wsWhere, orderBy: { createdAt: 'desc' }, take: 6, include: { workspace: { select: { name: true } } } }),
     user.role === 'ADMIN' ? db().auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 8 }) : Promise.resolve([]),
     db().$queryRaw<Array<{ d: Date; n: number }>>`SELECT date_trunc('day', "createdAt") AS d, count(*)::int AS n FROM orders WHERE "createdAt" > now() - interval '14 days' GROUP BY 1 ORDER BY 1`,

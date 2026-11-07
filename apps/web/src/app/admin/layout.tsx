@@ -27,7 +27,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       title: 'Operations', items: [
         { href: '/admin/jobs', label: 'Jobs monitor' },
         { href: '/admin/websites', label: 'Websites & domains' },
-        { href: '/admin/social', label: 'Social' },
         { href: '/admin/ai-visibility', label: 'AI Visibility' },
         has('ebooks.manage') ? { href: '/admin/ebooks', label: 'E-books' } : null,
         { href: '/admin/support', label: 'Support' },

@@ -11,6 +11,9 @@ Everything else is built and tested. Each line flips to **connected** in `/admin
 | 5 | **Registrar** with API (Porkbun, Namecheap or Dynadot), funded | `REGISTRAR_PROVIDER`, `REGISTRAR_API_KEY`, `REGISTRAR_API_SECRET` | Domain search/registration (domain rule already enforced in code) | Awaiting owner |
 | 6 | **Turnstile** (free) | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Bot protection on forms (rate limits already active) | Awaiting owner |
 | 7 | **Neon**: done — project `blue-forest-78059884` is connected; optional `NEON_API_KEY` for branch automation | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | Everything | **Connected** |
-| 8 | Later: **Meta** app (Business Verification + App Review), **TikTok** app (Content Posting API audit), **X** app + API credits, **Google** OAuth client, optional USPTO key | `META_*`, `TIKTOK_*`, `X_*`, `GOOGLE_OAUTH_*`, `USPTO_API_KEY` | Social Autopilot posting & live metrics; measured Search Console data | Awaiting owner (approvals take weeks) |
+| 8 | Later: **Google** OAuth client, optional USPTO key | `META_*`, `TIKTOK_*`, `X_*`, `GOOGLE_OAUTH_*`, `USPTO_API_KEY` | Social Autopilot posting & live metrics; measured Search Console data | Awaiting owner (approvals take weeks) |
 | 9 | Business: register a **DMCA agent** (U.S. Copyright Office, small fee); **attorney review** of legal pages; set the **postal address** in `/admin/settings → company` (required in marketing email) | — | Legal compliance | Awaiting owner |
 | 10 | Hosting plan: Vercel **Pro** (commercial use) *or* the VPS above before taking real customers | — | Lawful commercial hosting | Awaiting owner |
+
+## Phase 2 (not needed now)
+Social Media Autopilot was moved to phase 2 (DECISIONS D-21). When you restart it: create a **Meta** app (Business Verification + App Review), a **TikTok** app (Content Posting API audit) and an **X** app with API credits. These reviews take weeks, so start them a month before you want to launch the social product.

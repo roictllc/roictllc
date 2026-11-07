@@ -9,12 +9,11 @@ export const metadata = { title: 'Overview' };
 export default async function DashboardHome({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
   const { user, workspace, workspaceId, data } = await requireCustomer();
   const sp = await searchParams;
-  const [subs, orders, files, sites, social, audit, tickets] = await Promise.all([
+  const [subs, orders, files, sites, audit, tickets] = await Promise.all([
     data.subscription.findMany({ where: { status: { in: ['ACTIVE', 'TRIALING', 'PAST_DUE'] } }, include: { price: { include: { plan: { include: { product: true } } } } } }),
     data.order.findMany({ orderBy: { createdAt: 'desc' }, take: 5, include: { items: { include: { product: true } } } }),
     data.generatedDeliverable.count({ where: { isPreview: false } }),
     data.website.findMany({ where: { archivedAt: null }, take: 1 }),
-    data.socialAccount.count(),
     db().aiVisibilityAudit.findFirst({ where: { workspaceId, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' } }),
     data.supportTicket.count({ where: { status: { notIn: ['RESOLVED', 'CLOSED'] } } }),
   ]);
@@ -44,10 +43,9 @@ export default async function DashboardHome({ searchParams }: { searchParams: Pr
             <div className="mt-4"><ButtonLink href={audit ? `/ai-visibility/report/${audit.shareToken}` : '/ai-visibility#audit'} size="sm">{audit ? 'Open report' : 'Run free audit'}</ButtonLink></div>
           </Card>
           <Card>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">Social & website</p>
-            <p className="mt-2 text-sm">{social ? `${social} social account(s) connected.` : 'No social accounts connected yet.'}</p>
-            <p className="mt-1 text-sm">{sites[0] ? `Website “${sites[0].name}”: ${sites[0].status.toLowerCase()}` : 'No website yet.'}</p>
-            <p className="mt-3 flex gap-3 text-sm"><Link href="/dashboard/social" className="text-[var(--color-primary)]">Command center →</Link><Link href="/dashboard/website" className="text-[var(--color-primary)]">Website →</Link></p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">Website</p>
+            <p className="mt-2 text-sm">{sites[0] ? `Website “${sites[0].name}”: ${sites[0].status.toLowerCase()}` : 'No website yet.'}</p>
+            <p className="mt-3 flex gap-3 text-sm"><Link href="/dashboard/website" className="text-[var(--color-primary)]">Website →</Link></p>
           </Card>
         </div>
       </div>

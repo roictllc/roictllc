@@ -6,7 +6,7 @@ import { SITE } from '@/lib/seo';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: 'ROI — Get recommended by AI. Grow on autopilot.', template: '%s | ROI' },
+  title: { default: 'ROI — Get recommended by AI. Grow with one platform.', template: '%s | ROI' },
   description: SITE.description,
   applicationName: 'ROI',
   icons: { icon: '/icon.svg' },

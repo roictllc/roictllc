@@ -205,3 +205,46 @@ export async function watermarkPresent(frame: Buffer, logoPng: Buffer, o: Render
   }
   return n > 0 && dMarked < dClean;
 }
+
+/**
+ * Stand-alone 10-second reveal video (Product 2 step 6). Preview: 960×540 with the tiled watermark baked in;
+ * paid: 1920×1080 clean. H.264 yuv420p +faststart, duration checked with ffprobe.
+ */
+export async function renderRevealVideo(logoPng: Buffer, o: RenderOptions & { width: number; height: number; fps?: number; seconds?: number; watermark: boolean }) {
+  const work = await mkdtemp(path.join(tmpdir(), 'roi-reveal-'));
+  const fps = o.fps ?? 30;
+  const seconds = o.seconds ?? 10;
+  try {
+    const logo = await loadImage(logoPng);
+    const seq = path.join(work, 'f');
+    await run('mkdir', ['-p', seq]);
+    await frames(logo, seq, { width: o.width, height: o.height, fps, seconds, style: o.style, colors: o.colors, background: { kind: 'solid', color: '#04050D' }, reveal: { tagline: o.tagline }, watermark: o.watermark });
+    const out = path.join(work, 'reveal.mp4');
+    await ff(['-framerate', String(fps), '-i', path.join(seq, '%05d.png'), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', o.watermark ? '26' : '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-t', String(seconds), out]);
+    const p = await probe(out);
+    const checks = { dims: p.width === o.width && p.height === o.height, duration: Math.abs(p.duration - seconds) <= 0.1, codec: p.codec === 'h264' && p.pixFmt === 'yuv420p' };
+    const failed = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k);
+    if (failed.length) throw new Error(`Reveal QC failed: ${failed.join(', ')}`);
+    const firstFrame = await readFile(path.join(seq, '00000.png'));
+    const midFrame = await readFile(path.join(seq, `${String(Math.floor((fps * seconds) / 2)).padStart(5, '0')}.png`));
+    return { mp4: await readFile(out), probe: p, checks, firstFrame, midFrame };
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Watermark detection on any rendered frame (used by QC on paid files and previews): the preview watermark is
+ * saturated pink (#FF2D95) text at 42% opacity, so a watermarked frame has many pixels in that hue band that a clean
+ * frame of a typical logo does not. Returns the fraction of such pixels.
+ */
+export async function pinkWatermarkRatio(frame: Buffer) {
+  const { data, info } = await sharp(frame).flatten({ background: '#04050D' }).resize({ width: 480, fit: 'inside' }).raw().toBuffer({ resolveWithObject: true });
+  let hit = 0;
+  const n = info.width * info.height;
+  for (let i = 0; i < data.length; i += info.channels) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (r > 120 && r - g > 70 && b - g > 20 && r > b) hit++;
+  }
+  return hit / n;
+}

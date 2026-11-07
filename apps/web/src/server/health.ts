@@ -1,5 +1,6 @@
 import 'server-only';
 import { db } from './db';
+import { PHASE_2_INTEGRATION_KEYS } from '@roi/integrations';
 
 /** Component health for /status and /api/health (spec §5.2, §19). */
 export async function componentHealth() {
@@ -20,7 +21,7 @@ export async function componentHealth() {
       db().automationJob.findFirst({ where: { status: 'PENDING' }, orderBy: { runAt: 'asc' }, select: { runAt: true } }),
       db().automationJob.count({ where: { status: { in: ['FAILED', 'DEAD'] }, updatedAt: { gte: new Date(Date.now() - 86400_000) } } }),
       db().workerHeartbeat.findFirst({ orderBy: { lastBeatAt: 'desc' } }),
-      db().integration.findMany({ select: { key: true, name: true, status: true } }),
+      db().integration.findMany({ where: { key: { notIn: PHASE_2_INTEGRATION_KEYS } }, select: { key: true, name: true, status: true } }),
     ]);
     const ageS = oldest ? Math.round((Date.now() - oldest.runAt.getTime()) / 1000) : 0;
     components.push({ name: 'Job queue', status: ageS > 900 ? 'degraded' : 'operational', detail: `${queue} queued · oldest ${ageS}s · ${failed} failed in 24h` });

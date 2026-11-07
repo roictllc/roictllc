@@ -26,7 +26,7 @@ export default async function PricingPage() {
             p.visibility === 'LIVE' ? <Pill key="s" tone="success">Available</Pill> : <Pill key="s" tone="neutral">Coming soon</Pill>,
           ]))} />
       </div>
-      <p className="mt-6 text-center text-sm text-[var(--color-muted)]">Social Autopilot and AI Visibility plans are being finalized — <Link href="/register" className="text-[var(--color-primary)] hover:underline">create a free account</Link> to be first in line.</p>
+      <p className="mt-6 text-center text-sm text-[var(--color-muted)]">AI Visibility plans are being finalized — <Link href="/register" className="text-[var(--color-primary)] hover:underline">create a free account</Link> to be first in line.</p>
       <JsonLd data={breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Pricing', path: '/pricing' }])} />
     </Container>
   );

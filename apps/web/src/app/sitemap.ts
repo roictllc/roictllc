@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  const statics = ['', '/ai-visibility', '/social-media', '/products', '/pricing', '/websites', '/seo-local', '/ai-for-business', '/ebooks', '/guides', '/about', '/contact', '/faq', '/status'];
+  const statics = ['', '/ai-visibility', '/products', '/pricing', '/websites', '/seo-local', '/ai-for-business', '/ebooks', '/guides', '/about', '/contact', '/faq', '/status'];
   const products = await listPublicProducts().catch(() => []);
   const legal = await db().legalDocument.findMany({ select: { slug: true, updatedAt: true } }).catch(() => []);
   return [

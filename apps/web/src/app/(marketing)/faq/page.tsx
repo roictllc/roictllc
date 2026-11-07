@@ -4,7 +4,7 @@ import { JsonLd } from '@/components/json-ld';
 import { listPublicProducts } from '@/server/catalog';
 import { faqLd, pageMeta } from '@/lib/seo';
 
-export const metadata: Metadata = pageMeta({ title: 'Frequently asked questions', description: 'Answers about ROI’s AI visibility, social autopilot, websites, domains, pricing, refunds, security and data.', path: '/faq' });
+export const metadata: Metadata = pageMeta({ title: 'Frequently asked questions', description: 'Answers about ROI’s AI visibility, websites, logos, domains, pricing, refunds, security and data.', path: '/faq' });
 
 const GENERAL = [
   { q: 'Is ROI right for a small business?', a: 'Yes. ROI is built for US small businesses that want more customers without hiring a marketing team. Start with the free AI audit or a single product.' },

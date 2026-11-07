@@ -14,7 +14,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 const EXTRA_LINKS: Record<string, { href: string; label: string }> = {
   'ai-visibility': { href: '/ai-visibility#audit', label: 'Run the free AI audit' },
-  'social-autopilot': { href: '/social-media', label: 'See how Autopilot works' },
   'ai-business-integration': { href: '/ai-for-business#quote', label: 'Request a quote' },
   'ebook-library': { href: '/ebooks', label: 'Browse the library' },
   'animated-gif-logo': { href: '/guides/add-animated-gif-logo-to-gmail-signature', label: 'Gmail signature guide' },

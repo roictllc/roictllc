@@ -6,7 +6,7 @@ type Msg = { role: 'user' | 'assistant'; content: string; citations?: Array<{ ti
 /** Built-in ROI assistant (spec §13): answers from ROI's own knowledge base, no external AI API. */
 export function AssistantChat({ csrf, inline = false }: { csrf: string; inline?: boolean }) {
   const [open, setOpen] = useState(inline);
-  const [msgs, setMsgs] = useState<Msg[]>([{ role: 'assistant', content: 'Hi! I’m the ROI assistant. Ask me about getting recommended by AI, social autopilot, websites, prices or your orders.' }]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ role: 'assistant', content: 'Hi! I’m the ROI assistant. Ask me about getting recommended by AI, websites, logos, prices or your orders.' }]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);

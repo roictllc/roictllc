@@ -63,39 +63,6 @@ export async function addTrackedQuestionAction(_: ActionState, form: FormData): 
   return { ok: 'Question added. Mention checks appear here as they are recorded.' };
 }
 
-export async function setPostingModeAction(_: ActionState, form: FormData): Promise<ActionState> {
-  const g = await guard(form);
-  if (g) return g;
-  const c = await requireCustomer();
-  const id = String(form.get('accountId'));
-  const mode = z.enum(['APPROVE_FIRST', 'AUTO_PUBLISH', 'MANAGER_REVIEW']).safeParse(form.get('mode'));
-  if (!mode.success) return { error: 'Choose a posting mode.' };
-  const account = await c.data.socialAccount.findUnique({ where: { id } });
-  if (!account) return { error: 'Account not found.' };
-  if (mode.data === 'AUTO_PUBLISH' && form.get('consent') !== 'on') return { error: 'Full Autopilot needs your explicit consent: tick the box to let ROI publish without asking first.' };
-  await c.data.socialAccount.update({
-    where: { id },
-    data: { postingMode: mode.data, autopilot: mode.data === 'AUTO_PUBLISH', autopilotConsentAt: mode.data === 'AUTO_PUBLISH' ? new Date() : account.autopilotConsentAt },
-  });
-  await audit('social.mode_changed', { actorId: c.user.id, actorRole: 'CUSTOMER', targetType: 'SocialAccount', targetId: id, data: { mode: mode.data, consent: mode.data === 'AUTO_PUBLISH' } });
-  revalidatePath('/dashboard/social');
-  return { ok: mode.data === 'AUTO_PUBLISH' ? 'Full Autopilot is on. ROI will plan and publish for you. You can pause anytime.' : 'Posting mode saved.' };
-}
-
-export async function toggleSocialPauseAction(_: ActionState, form: FormData): Promise<ActionState> {
-  const g = await guard(form);
-  if (g) return g;
-  const c = await requireCustomer();
-  const id = String(form.get('accountId'));
-  const account = await c.data.socialAccount.findUnique({ where: { id } });
-  if (!account) return { error: 'Account not found.' };
-  await c.data.socialAccount.update({ where: { id }, data: { paused: !account.paused } });
-  if (!account.paused) await db().socialPost.updateMany({ where: { socialAccountId: id, workspaceId: c.workspaceId, status: { in: ['SCHEDULED', 'APPROVED'] } }, data: { status: 'PENDING_APPROVAL' } });
-  await audit(account.paused ? 'social.resumed' : 'social.paused', { actorId: c.user.id, actorRole: 'CUSTOMER', targetType: 'SocialAccount', targetId: id });
-  revalidatePath('/dashboard/social');
-  return { ok: account.paused ? 'Posting resumed.' : 'Paused. Nothing will be published until you resume.' };
-}
-
 export async function revokeSessionAction(_: ActionState, form: FormData): Promise<ActionState> {
   const g = await guard(form);
   if (g) return g;
