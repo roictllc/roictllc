@@ -11,6 +11,7 @@ import { assertCan, ForbiddenError } from '../authz';
 import { audit } from '../audit';
 import { changePrice, setProductVisibility } from '../pricing';
 import { refreshIntegrations } from '../integrations';
+import { notifyDelivered } from '@roi/product-engine/notify';
 
 async function staffGuard(form: FormData, permission: string) {
   try {
@@ -208,6 +209,18 @@ export async function retryJobAction(form: FormData) {
   const op = String(form.get('op'));
   if (op === 'retry') await db().automationJob.update({ where: { id }, data: { status: 'PENDING', runAt: new Date(), lockedBy: null, leaseUntil: null, lastError: null } });
   if (op === 'cancel') await db().automationJob.update({ where: { id }, data: { status: 'CANCELED' } });
+  const job = await db().automationJob.findUnique({ where: { id } });
+  // A retried paid job puts its order item back in progress (the 24 h auto-refund skips items completed by then).
+  if (op === 'retry' && job?.orderItemId) await db().orderItem.updateMany({ where: { id: job.orderItemId, status: 'FAILED' }, data: { status: 'PROCESSING' } });
+  // Manager override for quality gates (spec Product 2 step 5): release the files that are waiting for approval.
+  if (op === 'approve' && job?.status === 'WAITING_FOR_APPROVAL' && job.orderItemId) {
+    await db().$transaction(async (tx) => {
+      await tx.automationJob.update({ where: { id }, data: { status: 'COMPLETED', completedAt: new Date() } });
+      const item = await tx.orderItem.update({ where: { id: job.orderItemId! }, data: { status: 'COMPLETED' }, include: { order: { include: { items: true } } } });
+      if (item.order.items.every((i) => i.id === item.id || i.status === 'COMPLETED')) await tx.order.update({ where: { id: item.orderId }, data: { status: 'COMPLETED' } });
+    });
+    await notifyDelivered(db(), job.orderItemId);
+  }
   await audit(`job.${op}`, { actorId: g.user.id, actorRole: g.user.role, targetType: 'AutomationJob', targetId: id });
   revalidatePath('/admin/jobs');
 }

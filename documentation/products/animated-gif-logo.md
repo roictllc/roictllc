@@ -26,5 +26,19 @@ No guarantees of results; measured data is labeled with source and age.
 - **What files do I need?** A PNG, JPG or JPEG up to 10 MB with the shortest side at least 300 px. Transparent PNGs give the best results.
 - **What if rendering fails?** We retry automatically, then a manager steps in. If it still fails within 24 hours you are refunded in full automatically.
 
+## Customer flow (built)
+1. **Start**: product page → "Start free preview" → `/dashboard/create/animated-gif-logo` (sign-in required; free previews need a **verified email**; Turnstile when configured).
+2. **Upload**: `/api/uploads/logo` → size cap, builtin scan (EICAR, scripts, ZIP polyglots) + ClamAV INSTREAM when `CLAMAV_HOST` is set (fails closed), magic bytes, pixel cap, re-encode to PNG (EXIF and payloads dropped), dedup by hash. Then pick style, background, loop speed, tagline and effect colors.**
+3. **Preview job** `preview.animated-gif-logo` (lane `preview`, priority 50, max 2 attempts) on the worker. Prepare → render 480×270, 2 s, 12 fps with the tiled watermark baked in → QC fails the job if the watermark is not detected.
+4. **Preview display**: served only through `/api/previews/<id>?e=…&s=…` (HMAC-signed, ~10 min, session must own the workspace, `Cache-Control: no-store`, inline). Context menu, drag, copy and printing are blocked as deterrents; the baked-in watermark is the real protection.
+5. **Buy**: consent checkbox → `buyPreviewAction` → Stripe Checkout. The paid job's inputs are copied from the stored preview on the server, never from the browser.
+6. **Paid job** `product.animated-gif-logo` (lane `paid`, priority 10, 3 attempts with backoff). Full render (master GIF, email GIF ≤ 1 MB, PNG fallback, 10 s 1080p MP4, original) → ffprobe QC → **no-watermark QC** against the clean source → store; email GIF and PNG on the public bucket for Gmail.
+7. **Delivery**: files listed under Products & downloads (`/api/files/<id>`: ownership + payment + item COMPLETED). Email `deliverable-ready` and an in-app notification.
+8. **Failure**: after the last retry the item becomes FAILED; the customer gets `failure-notice`, ADMIN/MANAGER get `admin-alert`, and `housekeeping.auto-refund` is scheduled for +24 h. It refunds in full through Stripe unless staff retried or approved the item first. Without Stripe credentials it refuses and alerts the admin instead of pretending.
+
+**Limits:** 10 free previews per verified account per day (setting `previews.dailyLimit`), 40 per IP per day, uploads 30/h per account. Previews of identical inputs are reused (input hash).
+**Admin:** Jobs monitor → Retry / Cancel / **Approve & deliver** (for quality-gate holds). Flag `previews` opens previews before the product is LIVE (owner testing).
+**Tests:** `tests/integration/logo-flows.test.ts` (real files, see test names).
+
 ## Build status
-Engine ✅ (packages/video-engine, 14 tests incl. full-size ffprobe QC). Worker handler `product.animated-gif-logo` written. Needs: worker VPS, R2, Stripe.
+Engine ✅ · intake ✅ · preview job ✅ · paid job ✅ · customer pages ✅ · failure/refund rules ✅ · tests ✅ (real files). Live use needs: worker VPS (FFmpeg), R2, Stripe, Resend.

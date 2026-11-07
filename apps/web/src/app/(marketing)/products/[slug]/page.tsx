@@ -12,6 +12,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return pageMeta({ title: p.seoTitle.replace(/ \| ROI$/, ''), description: p.seoDescription, path: `/products/${p.slug}` });
 }
 
+/** Products 1–3 start with a free watermarked preview; checkout happens after the customer sees the result. */
+const PREVIEW_FIRST = new Set(['animated-gif-logo', 'logo-revival', 'logo-generator']);
+
 const EXTRA_LINKS: Record<string, { href: string; label: string }> = {
   'ai-visibility': { href: '/ai-visibility#audit', label: 'Run the free AI audit' },
   'ai-business-integration': { href: '/ai-for-business#quote', label: 'Request a quote' },
@@ -24,6 +27,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   if (!p) notFound();
   const checkout = (await getFlag('checkout')) === 'LIVE';
   const purchasable = checkout && p.visibility === 'LIVE';
+  const previewsOpen = p.visibility === 'LIVE' || (await getFlag('previews')) === 'LIVE';
   const plans = p.plans.filter((pl) => pl.published);
   const related = (await listPublicProducts()).filter((x) => x.category.slug === p.category.slug && x.slug !== p.slug).slice(0, 3);
   const extra = EXTRA_LINKS[p.slug];
@@ -60,6 +64,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <ul className="mt-4 space-y-2 text-sm">{pl.features.map((f) => <li key={f} className="flex gap-2"><span aria-hidden className="text-[var(--color-success)]">✓</span>{f}</li>)}</ul>
                 <div className="mt-5">
                   {pl.price?.amountCents === 0 && p.slug === 'ai-visibility' ? <ButtonLink href="/ai-visibility#audit" className="w-full">Run free audit</ButtonLink>
+                    : PREVIEW_FIRST.has(p.slug) && (purchasable || previewsOpen) ? <ButtonLink href={`/dashboard/create/${p.slug}`} className="w-full">{p.slug === 'logo-generator' ? 'Create 3 free concepts' : 'Start free preview'}</ButtonLink>
                     : purchasable && pl.price ? <ButtonLink href={`/checkout?plan=${pl.id}`} className="w-full">Get started</ButtonLink>
                     : p.kind === 'QUOTE' ? <ButtonLink href="/ai-for-business#quote" className="w-full">Request a quote</ButtonLink>
                     : <ButtonLink href={`/register?next=${encodeURIComponent(`/products/${p.slug}`)}`} variant="secondary" className="w-full">Coming soon — create a free account</ButtonLink>}

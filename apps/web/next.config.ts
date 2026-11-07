@@ -20,7 +20,7 @@ const config: NextConfig = {
     '@roi/database', '@roi/shared-utils', '@roi/shared-types', '@roi/validation', '@roi/product-engine', '@roi/integrations',
     '@roi/email-templates', '@roi/seo-engine', '@roi/assistant', '@roi/site-generator', '@roi/logo-engine', '@roi/design-tokens',
   ],
-  serverExternalPackages: ['@node-rs/argon2', 'pg', 'sharp', '@resvg/resvg-js'],
+  serverExternalPackages: ['@node-rs/argon2', 'pg', 'sharp', '@resvg/resvg-js', '@napi-rs/canvas', 'archiver'],
   typescript: { ignoreBuildErrors: false },
   images: { formats: ['image/avif', 'image/webp'] },
   async headers() {

@@ -1,11 +1,10 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+export { IntakeRejected, ingestLogoUpload, previewInputHash } from './intake';
 import type { PrismaClient } from '@roi/database';
 import sharp from 'sharp';
 import { finishOrderItem, inputsFor, storeDeliverable, type Handler, type HandlerContext } from './handlers';
 import { log, step } from './queue';
-import { scanUpload } from './scan';
 import { zipFiles } from './signatures';
-import type { StorageProvider } from './storage';
 
 /**
  * Products 1–3 customer flows (spec §12): upload intake, cheap watermarked pre-payment previews, and paid delivery
@@ -14,42 +13,6 @@ import type { StorageProvider } from './storage';
  */
 const video = () => import('../../video-engine/src/index');
 const logos = () => import('../../logo-engine/src/index');
-const sha256 = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
-
-export class IntakeRejected extends Error {}
-
-/** Spec §6 + Product 1 step 1: size cap, magic bytes, pixel cap, malware scan, re-encode to PNG, metadata stripped. */
-export async function ingestLogoUpload(db: PrismaClient, storage: StorageProvider, a: { workspaceId: string; buf: Buffer; originalName?: string; purpose: 'animated-gif-logo' | 'logo-revival'; minSide: number }) {
-  const { validateLogo, UploadRejected } = await video();
-  const scan = await scanUpload(a.buf).catch((e: Error) => {
-    throw new IntakeRejected(`Security scan unavailable, please try again shortly (${e.message.slice(0, 60)}).`);
-  });
-  const hash = sha256(a.buf);
-  if (!scan.clean) {
-    await db.customerAsset.create({ data: { workspaceId: a.workspaceId, kind: 'logo-upload', storageKey: `rejected/${a.workspaceId}/${hash}`, mime: 'application/octet-stream', sizeBytes: a.buf.length, sha256: hash, originalName: a.originalName?.slice(0, 200), scanStatus: 'INFECTED' } });
-    throw new IntakeRejected('The file failed the security scan and was discarded.');
-  }
-  let v: Awaited<ReturnType<typeof validateLogo>>;
-  try {
-    v = await validateLogo(a.buf, { minSide: a.minSide });
-  } catch (e) {
-    if (e instanceof UploadRejected) throw new IntakeRejected(e.message);
-    throw e;
-  }
-  const key = `${a.workspaceId}/uploads/${sha256(v.png).slice(0, 24)}.png`;
-  const existing = await db.customerAsset.findUnique({ where: { storageKey: key } });
-  const asset =
-    existing ??
-    (await (async () => {
-      const stored = await storage.put('private', key, v.png, 'image/png');
-      return db.customerAsset.create({ data: { workspaceId: a.workspaceId, kind: 'logo-upload', storageKey: key, mime: 'image/png', sizeBytes: v.png.length, sha256: stored.sha256, width: v.width, height: v.height, originalName: a.originalName?.slice(0, 200), scanStatus: 'CLEAN' } });
-    })());
-  const upload = await db.logoUpload.create({ data: { workspaceId: a.workspaceId, assetId: asset.id, purpose: a.purpose, analysis: { scanEngine: scan.engine, sourceKind: v.kind, width: v.width, height: v.height } } });
-  return { asset, upload, scanEngine: scan.engine };
-}
-
-/** Cache key for previews: same logo + same options → same preview (spec Product 1 step 3). */
-export const previewInputHash = (product: string, assetSha: string, options: object) => sha256(`${product}:${assetSha}:${JSON.stringify(options, Object.keys(options).sort())}`);
 
 async function loadCleanAsset(ctx: HandlerContext, assetId: string) {
   const asset = await ctx.db.customerAsset.findFirstOrThrow({ where: { id: assetId, workspaceId: ctx.workspaceId } });
@@ -141,17 +104,13 @@ export const previewConceptsHandler: Handler = async (ctx) => {
 /** Product 2 paid delivery: enhanced PNG, transparent PNG, clean 1080p MP4, optional traced SVG, original. */
 export const revivalHandler: Handler = async (ctx) => {
   const started = Date.now();
-  const { reviveLogo, renderRevealVideo, pinkWatermarkRatio } = await video();
+  const { reviveLogo, renderRevealVideo, assertNoWatermark } = await video();
   const inputs = (await inputsFor(ctx)) as RevivalInputs;
   const item = await ctx.db.orderItem.findUniqueOrThrow({ where: { id: ctx.orderItemId! } });
   const raw = await loadCleanAsset(ctx, inputs.logoAssetId);
   const r = await step(ctx.db, ctx.jobId, 'enhance', { output: inputs.output }, () => reviveLogo(raw, { output: inputs.output, logoType: inputs.logoType }));
   const mp4 = await step(ctx.db, ctx.jobId, 'render-video', null, () => renderRevealVideo(r.transparentPng, { style: 'shine-sweep', colors: BRAND, background: { kind: 'transparent' }, width: 1920, height: 1080, fps: 30, seconds: 10, watermark: false }));
-  await step(ctx.db, ctx.jobId, 'qc-no-watermark', null, async () => {
-    const ratios = [await pinkWatermarkRatio(mp4.midFrame), await pinkWatermarkRatio(r.enhancedPng)];
-    if (ratios.some((x) => x > 0.005)) throw new Error('Watermark pixels found in a paid file');
-    return { ratios };
-  });
+  await step(ctx.db, ctx.jobId, 'qc-no-watermark', null, () => assertNoWatermark([mp4.midFrame, r.enhancedPng], r.transparentPng));
   await step(ctx.db, ctx.jobId, 'store', null, async () => {
     const m = await sharp(r.enhancedPng).metadata();
     await storeDeliverable(ctx, { kind: 'enhanced-png', fileName: 'logo-enhanced.png', body: r.enhancedPng, mime: 'image/png', width: m.width, height: m.height, validation: r.metrics as unknown as Record<string, unknown> });

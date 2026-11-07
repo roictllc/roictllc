@@ -20,7 +20,7 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 - ✅ Lockout after repeated failures (tested) · ✅ PostgreSQL rate limits on login/reset/signup/contact/audit/assistant/checkout/tickets
 - ✅ Strict CSP with per-request nonces, HSTS, frame-ancestors none, Referrer/Permissions/COOP/CORP
 - ✅ SSRF-safe fetch (connect-time IP validation, redirects re-checked, size/time caps, robots) — 29 tests
-- ✅ Upload validation (magic bytes, size, pixel cap, re-encode, EICAR) in engines · 🟡 ClamAV daemon in Docker Compose (needs VPS)
+- ✅ Upload pipeline: size cap before read, builtin scan (EICAR, scripts, ZIP polyglots), ClamAV INSTREAM client (fails closed) when `CLAMAV_HOST` is set, magic bytes, pixel cap, re-encode, EXIF stripped (tested) · 🟡 ClamAV daemon runs on the VPS
 - ✅ AES-256-GCM for integration credentials/2FA secrets (tested)
 - ✅ Stripe webhook signature verification on raw body + idempotent event storage (tested)
 - 🟠 Admin read-only customer preview (impersonation model + grant table exist; UI not built)
@@ -51,9 +51,9 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 - ✅ PostgreSQL queue: SKIP LOCKED claims, leases, heartbeats, backoff, dead-letter, sweeper, per-type concurrency (tested)
 - ✅ Worker process with heartbeat, graceful shutdown, steps/logs/costs; StorageProvider (R2 SigV4 / local dev)
 - ✅ P8 Email Signature Suite: 10 templates, email-HTML linter, CSV import, gallery, ZIP, install guides — engine + worker end-to-end test
-- ✅ P1 Animated GIF Logo: validation, prep, 10 styles, watermarked previews, 1920×1080 GIF, ≤1 MB email GIF, PNG fallback, 10.0 s H.264 MP4, ffprobe QC, watermark absence check — engine tests; worker handler written
-- ✅ P2 Logo Revival engine (classify, 4×, sharpness metric, SSIM-gated traced SVG) — 🟠 ONNX model optional (Lanczos fallback per spec), worker handler + preview video not wired
-- ✅ P3 Logo Generator engine (7 archetypes, motifs, OFL fonts outlined, fingerprints, 500-mark uniqueness test, forensic-watermarked previews, 3 packages incl. PDFs) — 🟠 customer flow/handler not wired
+- ✅ P1 Animated GIF Logo: upload intake (scan + re-encode), 10 styles, cached watermarked 480 px preview job, paid render (1920×1080 GIF, ≤1 MB email GIF, PNG fallback, 10.0 s MP4), ffprobe QC, watermark present in previews / absent in paid files, delivery email, 24 h auto-refund rule — integration tests on real files; customer pages verified in a browser · 🟡 live use needs VPS worker + R2 + Stripe
+- ✅ P2 Logo Revival: engine (classify, 4×, sharpness metric, SSIM-gated traced SVG), 10 s 540p watermarked preview video, 1080p clean delivery, manager approval hold, 3 previews/day — tests on real files · 🟠 ONNX super-resolution model optional (Lanczos fallback per spec)
+- ✅ P3 Logo Generator: 3 screened concepts per brief (pool = all ROI marks + 36 seeded reference motifs), similarity report + name check, ≤640 px forensic-tagged previews, Basic/Professional/Premium packages, sold marks reserved — tests on real files incl. ZIP contents
 - ✅ P4 E-book pipeline (validation, active-content rejection, Chapter-1 detection, 3 watermarked image pages, buyer-stamped copy) — 🟠 upload UI + handler not wired
 - ✅ P5 Site generator (22 industry packs, quality gate, ≤5 s, uniqueness across 100 sites) — 🟠 publish pipeline (Cloudflare Pages) + editor/rollback not built; contact-form endpoint ✅
 - 🟠 P6 Managed SEO: SSRF-safe fetch + AI-readiness checks exist; multi-page crawler, Lighthouse, reports not built

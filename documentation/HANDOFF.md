@@ -6,8 +6,8 @@ Session 1 ended with the platform ready for a private preview on Vercel + Neon (
 See `IMPLEMENTATION_CHECKLIST.md` (✅ items) and `documentation/FINAL_REPORT.md` (test evidence).
 
 ## Next, in spec build order
-1. **Wire remaining product handlers into the worker** (engines already tested): P2 revival (+ watermarked 540p preview video), P3 concept generation flow (form → 3 concepts → choose package → deliver ZIP), P4 e-book upload form + preview/stamp jobs, P5 publish pipeline (Cloudflare Pages Direct Upload `HostingProvider`, versions, rollback, editor).
-2. **Pre-payment preview flows** (P1–P3): upload endpoint → quarantine → scan → preview job; rate limits per verified account; preview pages.
+1. ~~P1–P3 customer flows~~ ✅ done (upload → preview → pay → deliver). Remaining here: **P4** e-book upload form + preview/stamp jobs, **P5** publish pipeline (Cloudflare Pages Direct Upload `HostingProvider`, versions, rollback, editor), **P8** signature-suite order form (handler exists).
+2. ~~Pre-payment preview flows~~ ✅ done for P1–P3 (verified email, Turnstile, daily limits, signed no-store preview URLs).
 3. **Registrar adapters** (Porkbun, Namecheap, Dynadot) behind `RegistrarProvider` + domain search UI using `decideDomainPrice`.
 4. **P6 crawler** (multi-page, Lighthouse via Chromium, findings, auto-fix on ROI sites, monthly PDF) and **P7** (Census Gazetteer importer `seed/import-us-places.ts`, location pages through the shingle gate, NAP checks).
 5. ~~P9 jobs~~ — Social Media Autopilot moved to phase 2 (D-21); restore from branch `phase2-social-baseline` when the owner restarts it.

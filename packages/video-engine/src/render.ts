@@ -244,7 +244,21 @@ export async function pinkWatermarkRatio(frame: Buffer) {
   const n = info.width * info.height;
   for (let i = 0; i < data.length; i += info.channels) {
     const r = data[i], g = data[i + 1], b = data[i + 2];
-    if (r > 120 && r - g > 70 && b - g > 20 && r > b) hit++;
+    if (r > 80 && r - g > 50 && b - g > 20 && r > b) hit++;
   }
   return hit / n;
+}
+
+/**
+ * Paid-file QC (spec Product 1 step 6 "no watermark pixels in paid files"). A customer's own logo may contain
+ * magenta, so the frame is compared with the clean source logo: a frame passes when its watermark-hue share is not
+ * above what the logo itself contributes (with a small tolerance).
+ */
+export async function assertNoWatermark(frames: Buffer[], sourcePng: Buffer) {
+  const base = await pinkWatermarkRatio(sourcePng);
+  const limit = Math.max(0.005, base * 1.2 + 0.003);
+  const ratios = await Promise.all(frames.map((f) => pinkWatermarkRatio(f)));
+  const bad = ratios.filter((r) => r > limit);
+  if (bad.length) throw new Error(`Watermark pixels found in a paid file (${bad[0].toFixed(4)} > ${limit.toFixed(4)})`);
+  return { ratios, limit };
 }

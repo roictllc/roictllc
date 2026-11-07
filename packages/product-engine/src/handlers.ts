@@ -91,6 +91,11 @@ export const gifLogoHandler: Handler = async (ctx) => {
   const prepared = await step(ctx.db, ctx.jobId, 'prepare', { background: data.background }, () => prepareLogo(png, { background: data.background }));
   const result = await step(ctx.db, ctx.jobId, 'render+encode+qc', { style: data.style }, () => renderLogoAnimation(prepared.png, { style: data.style as never, colors: data.effectColors?.length ? data.effectColors : ['#00E5FF', '#7B3FFF'], background: data.background === 'solid' ? { kind: 'solid', color: data.backgroundColor ?? '#FFFFFF' } : data.background === 'transparent' ? { kind: 'transparent' } : { kind: 'keep', color: '#FFFFFF' }, speed: data.loopSpeed, tagline: data.tagline }));
   const qc = result.qc as { master: { width: number; height: number }; email: { width: number; height: number }; reveal: { duration: number } };
+  await step(ctx.db, ctx.jobId, 'qc-no-watermark', null, async () => {
+    const { assertNoWatermark } = await import('../../video-engine/src/index');
+    const first = await sharp(result.masterGif, { pages: 1 }).png().toBuffer();
+    return assertNoWatermark([first, result.pngFallback], prepared.png);
+  });
   await step(ctx.db, ctx.jobId, 'store', null, async () => {
     await storeDeliverable(ctx, { kind: 'master-gif', fileName: 'logo-1920x1080.gif', body: result.masterGif, mime: 'image/gif', width: qc.master.width, height: qc.master.height, validation: qc as unknown as Record<string, unknown> });
     await storeDeliverable(ctx, { kind: 'email-gif', fileName: 'logo-email.gif', body: result.emailGif, mime: 'image/gif', bucket: 'public', width: qc.email.width, height: qc.email.height, validation: { underOneMB: result.emailGif.length <= 1_000_000 } });

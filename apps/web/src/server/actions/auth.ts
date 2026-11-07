@@ -1,7 +1,8 @@
 'use server';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { encryptSecret } from '@roi/shared-utils';
+import { encryptSecret, randomToken, sha256Hex } from '@roi/shared-utils';
+import { db } from '../db';
 import { loginSchema, registerSchema } from '@roi/validation';
 import type { ActionState } from '@/components/action-form';
 import { assertCsrf, CsrfError } from '../csrf';
@@ -174,4 +175,20 @@ export async function verifyTotpAction(_: ActionState, form: FormData): Promise<
   await audit('auth.2fa_verified', { actorId: s.user.id, actorRole: s.user.role, data: { method: r.method } });
   if (s.user.mustChangePassword) redirect('/account/change-password');
   redirect(safeNext(form.get('next')) ?? homeFor(s.user.role));
+}
+
+/** Resend the email-verification link (free previews need a verified account). Rate limited; old links stay valid until they expire. */
+export async function resendVerificationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const g = await guard(form);
+  if (g) return g;
+  const s = await getSession();
+  if (!s) return { error: 'Please sign in.' };
+  if (s.user.emailVerifiedAt) return { ok: 'Your email is already verified.' };
+  const rl = await rateLimit(`verify-resend:${s.user.id}`, 3, 3600);
+  if (!rl.ok) return { error: 'We already sent a few links. Check your inbox and spam folder, or try again in an hour.' };
+  const token = randomToken(32);
+  await db().emailVerificationToken.create({ data: { userId: s.user.id, tokenHash: sha256Hex(token), expiresAt: new Date(Date.now() + 24 * 3600_000) } });
+  const r = await sendEmail(s.user.email, 'verify-email', { email: s.user.email, link: `${appUrl()}/verify-email?token=${token}` });
+  await audit('auth.verify_resent', { actorId: s.user.id, actorRole: s.user.role, targetType: 'User', targetId: s.user.id });
+  return r.status === 'AWAITING_CONFIGURATION' ? { error: 'Email sending is not connected yet, so we could not send the link. Please contact support.' } : { ok: `We sent a new link to ${s.user.email}.` };
 }

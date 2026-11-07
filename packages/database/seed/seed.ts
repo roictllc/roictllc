@@ -36,6 +36,7 @@ export const SETTINGS: Array<{ key: string; value: unknown; description: string 
 ];
 
 const FLAGS: Array<{ key: string; visibility: 'HIDDEN' | 'COMING_SOON' | 'LIVE'; description: string }> = [
+  { key: 'previews', visibility: 'HIDDEN', description: 'Free watermarked previews (Products 1–3) before the product itself is LIVE: owner testing and early access. Needs file storage and the media worker.' },
   { key: 'checkout', visibility: 'HIDDEN', description: 'Stripe checkout (LIVE requires the Stripe integration to be CONNECTED).' },
   { key: 'signup', visibility: 'LIVE', description: 'Public customer registration.' },
   { key: 'ai_visibility.free_audit', visibility: 'LIVE', description: 'Free AI Visibility audit (runs inside ROI, no external API).' },
@@ -157,6 +158,16 @@ export async function seed(opts: { log?: (s: string) => void } = {}) {
     }
     for (const s of US_STATES) {
       await prisma.usPlace.upsert({ where: { geoid: s.fips }, update: {}, create: { geoid: s.fips, kind: 'STATE', name: s.name, stateCode: s.code } });
+    }
+
+    // Logo similarity reference set (Product 3): raw industry motifs, fingerprinted once.
+    if ((await prisma.logoFingerprint.count({ where: { source: 'reference' } })) === 0) {
+      const { referenceMarks, fingerprint } = await import('../../logo-engine/src/index');
+      for (const m of referenceMarks()) {
+        const fp = await fingerprint(m.svg);
+        await prisma.logoFingerprint.create({ data: { source: 'reference', label: m.label, phash: fp.phash, dhash: fp.dhash, huMoments: fp.hu, layoutSig: fp.layout, paletteSig: fp.palette } });
+        inc('referenceMarks');
+      }
     }
 
     // ROI assistant knowledge base (global; derived from the catalog + policies so it never drifts from the DB copy)

@@ -8,19 +8,12 @@ import { db } from '../db';
 import { assertCsrf, CsrfError } from '../csrf';
 import { requestMeta } from '../request';
 import { rateLimit } from '../rate-limit';
+import { verifyTurnstile } from '../turnstile';
 import { sendEmail } from '../email';
 import { appUrl } from '../env';
 import { getFlag } from '../catalog';
 import { getSession } from '../session';
 import { customerWorkspaceId } from '../authz';
-
-async function verifyTurnstile(token: FormDataEntryValue | null, ip: string | null) {
-  const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true; // not configured → rate limits still apply (documented in DECISIONS)
-  if (typeof token !== 'string' || !token) return false;
-  const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: new URLSearchParams({ secret, response: token, ...(ip ? { remoteip: ip } : {}) }), signal: AbortSignal.timeout(8000) }).catch(() => null);
-  return !!res && ((await res.json()) as { success?: boolean }).success === true;
-}
 
 async function guard(form: FormData) {
   try {

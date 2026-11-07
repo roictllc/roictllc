@@ -258,3 +258,17 @@ export function generateLogo(input: LogoInput, archetype: Archetype, seed: strin
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${input.companyName.replace(/[<>"&]/g, '')} logo">${body}</svg>`;
   return { seed, archetype, svg, palette: [pal.primary, pal.accent, pal.text], fontKey, params: { rot, sc, style: input.style, category: input.category } };
 }
+
+/**
+ * Reference set for similarity screening (spec Product 3 "Uniqueness" step 2): every raw industry motif, untransformed,
+ * at three seeds. A concept that is just a stock motif is rejected, so no motif ships unmodified.
+ */
+export function referenceMarks(): Array<{ label: string; svg: string }> {
+  const out: Array<{ label: string; svg: string }> = [];
+  for (const [cat, draw] of Object.entries(MOTIFS)) {
+    for (let i = 0; i < 3; i++) {
+      out.push({ label: `motif:${cat}:${i}`, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="400" height="400"><rect width="80" height="80" fill="#FFFFFF"/>${draw(rng(`reference:${cat}:${i}`), '#111111', '#555555')}</svg>` });
+    }
+  }
+  return out;
+}

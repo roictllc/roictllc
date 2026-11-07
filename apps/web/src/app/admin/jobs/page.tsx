@@ -34,6 +34,7 @@ export default async function JobsPage() {
           j.runAt.toISOString().slice(0, 16).replace('T', ' '), `$${(j.costMillicents / 100000).toFixed(4)}`, <span key="e" className="block max-w-xs truncate text-xs text-[var(--color-danger)]">{j.lastError ?? ''}</span>,
           manage && ['FAILED', 'DEAD', 'PENDING', 'WAITING_FOR_APPROVAL'].includes(j.status) ? (
             <div key="a" className="flex gap-1">
+              {j.status === 'WAITING_FOR_APPROVAL' && j.orderItemId && <form action={retryJobAction}><CsrfField /><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="op" value="approve" /><button className="rounded-lg border border-[var(--color-success)] px-2 py-1 text-xs text-[var(--color-success)]">Approve &amp; deliver</button></form>}
               {['FAILED', 'DEAD'].includes(j.status) && <form action={retryJobAction}><CsrfField /><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="op" value="retry" /><button className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs">Retry</button></form>}
               <form action={retryJobAction}><CsrfField /><input type="hidden" name="jobId" value={j.id} /><input type="hidden" name="op" value="cancel" /><button className="rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs">Cancel</button></form>
             </div>
