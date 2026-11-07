@@ -5,7 +5,7 @@
  */
 import os from 'node:os';
 import { createPrisma } from '@roi/database';
-import { claim, complete, fail, heartbeat, JOB_CONCURRENCY, JOB_HANDLERS, log, notifyDelivered, notifyFailed, sweepStuck, storageFromEnv, sendEmailFromWorker } from '@roi/product-engine';
+import { claim, complete, fail, heartbeat, JOB_CONCURRENCY, JOB_HANDLERS, log, notifyDelivered, notifyFailed, scheduleHousekeeping, sweepStuck, storageFromEnv, sendEmailFromWorker } from '@roi/product-engine';
 
 const VERSION = process.env.ROI_VERSION ?? '1.0.0';
 const workerId = `${os.hostname()}-${process.pid}`;
@@ -61,6 +61,9 @@ async function main() {
   await beat();
   const hb = setInterval(() => beat().catch((e) => jlog('error', 'heartbeat.failed', { error: e.message })), 20_000);
   const sweeper = setInterval(() => sweepStuck(db).then((n) => n && jlog('warn', 'swept stuck jobs', { n })).catch(() => {}), 60_000);
+  // Monitoring + billing enforcement (spec §19): time-bucketed keys make this safe with several workers.
+  const scheduler = setInterval(() => scheduleHousekeeping(db).catch((e) => jlog('error', 'scheduler.failed', { error: e.message })), 60_000);
+  void scheduleHousekeeping(db).catch(() => {});
   const stop = () => {
     stopping = true;
     jlog('info', 'worker.stopping');
@@ -73,6 +76,7 @@ async function main() {
   }
   clearInterval(hb);
   clearInterval(sweeper);
+  clearInterval(scheduler);
   await db.$disconnect();
   jlog('info', 'worker.stopped');
 }

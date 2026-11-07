@@ -12,7 +12,7 @@ export const metadata = { title: 'Settings' };
 export default async function SettingsPage() {
   const { user } = await requireUser({ roles: ['ADMIN'] });
   await assertCan(user, 'settings.manage');
-  const settings = await db().setting.findMany({ orderBy: { key: 'asc' } });
+  const settings = await db().setting.findMany({ where: { NOT: { key: { startsWith: 'alert-state:' } } }, orderBy: { key: 'asc' } }); // monitoring state is internal
   return (
     <>
       <PageHeader title="Settings" intro="Thresholds, policies and company facts. Values are JSON; every change is audited. The domain rule, grace period and margin minimum take effect immediately." />

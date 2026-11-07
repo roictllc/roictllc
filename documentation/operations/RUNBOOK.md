@@ -23,3 +23,13 @@
 
 ## Dependency cadence
 Dependabot weekly; review security advisories immediately (`npm audit --omit=dev`). Log retention 30 days; logs avoid PII (emails only where operationally necessary).
+
+## Monitoring jobs (worker)
+The worker enqueues these every minute with time-bucketed idempotency keys (`monitor.uptime:<minute>` …), so running several workers never duplicates them:
+| Job | Every | What it does |
+|---|---|---|
+| `monitor.uptime` | 1 min | GET each live customer site (SSRF-safe fetch) and `APP_URL/api/health`; DOWN alert to the owner + ADMIN/MANAGER after 2 consecutive failures, once per incident; recovery notice |
+| `monitor.queue` | 5 min | alert when the oldest waiting customer job is older than 15 min or jobs dead-lettered in the last hour |
+| `billing.enforce` | 1 h | suspend sites past their grace period / after a canceled subscription's period; restore on payment; prune monitoring job history after 7 days |
+| `monitor.ssl-domains` | daily | certificate expiry for every verified domain of a live site + registered domain expiry; reminders at 30/14/7 days |
+Alert state lives in `settings` under `alert-state:*` (hidden from the admin settings page).

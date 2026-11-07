@@ -11,3 +11,4 @@ export * from './notify';
 export * from './jobs';
 export * from './ebook-jobs';
 export * from './websites';
+export * from './monitors';
