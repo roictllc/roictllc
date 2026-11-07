@@ -46,7 +46,7 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 - ✅ Server-side totals; checkout session creation (Stripe REST, tax, consent, idempotency keys) — 🟡 disabled until Stripe is connected
 - ✅ Webhooks: checkout completed, invoice paid/failed (dunning + grace), subscription updated/deleted, refunds (+ affiliate clawback), disputes; fees from balance transactions (tested with fixtures)
 - ✅ Price versioning + Stripe Price creation; margin guard blocks below minimum without a recorded reason (tested)
-- ✅ Domain rule incl. $14.99/$15.00/$15.01 and renewal re-evaluation (tested) · ⬜ registrar adapters (Porkbun/Namecheap/Dynadot) + domain search UI
+- ✅ Domain rule incl. $14.99/$15.00/$15.01 and renewal re-evaluation (tested) · ✅ Porkbun registrar adapter (API verified 2026-11-06: checkDomain, registration requirements, dry-run + idempotent create, $100 API cap, contacts, DNS; sandbox keys) + domain search with the $15 rule in the website dashboard + `domain.register` job (price re-check, customer as registrant, DNS to the host, ROI-paid expense in the ledger, renewal scheduled, site rebuilt and republished) — tests with a mocked API · ⬜ customer-paid (≥ $15) domain checkout, renewal invoices, Namecheap/Dynadot adapters
 - ✅ Finance math from ledger (gross/net, MRR/ARR, revenue by product) with reconciliation test
 
 ## Engine & products (§10–§13)

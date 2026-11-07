@@ -8,7 +8,7 @@ See `IMPLEMENTATION_CHECKLIST.md` (✅ items) and `documentation/FINAL_REPORT.md
 ## Next, in spec build order
 1. ~~P1–P3 customer flows~~ ✅ done (upload → preview → pay → deliver). Remaining here: ~~P4~~ ✅, ~~P5 publishing/versions/rollback/editor~~ ✅ (still to do: OG images, editor image uploads). P8 signature-suite order flow ✅ done.
 2. ~~Pre-payment preview flows~~ ✅ done for P1–P3 (verified email, Turnstile, daily limits, signed no-store preview URLs).
-3. **Registrar adapters** (Porkbun, Namecheap, Dynadot) behind `RegistrarProvider` + domain search UI using `decideDomainPrice`.
+3. ~~Registrar adapter + domain search~~ ✅ (Porkbun, covered domains). Still to do: Stripe checkout for ≥ $15 domains, renewal invoices 30 days ahead (60-day notice when a covered domain's renewal rises to ≥ $15), Namecheap/Dynadot adapters behind the same `RegistrarProvider`.
 4. **P6 crawler** (multi-page, Lighthouse via Chromium, findings, auto-fix on ROI sites, monthly PDF) and **P7** (Census Gazetteer importer `seed/import-us-places.ts`, location pages through the shingle gate, NAP checks).
 5. ~~P9 jobs~~ — Social Media Autopilot moved to phase 2 (D-21); restore from branch `phase2-social-baseline` when the owner restarts it.
 6. **P10**: per-client knowledge upload + embeddable widget; Part B encrypted client keys with PII redaction and spending limits.

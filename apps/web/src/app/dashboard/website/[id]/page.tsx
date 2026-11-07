@@ -11,12 +11,16 @@ import { Alert, Card, Input, PageHeader, Pill, statusTone, Table } from '@/compo
 import { requireCustomer } from '@/server/customer';
 import { db } from '@/server/db';
 import { getFlag, getPublicProduct } from '@/server/catalog';
-import { connectDomainAction, publishVersionAction, subscribeWebsiteAction, verifyDomainAction } from '@/server/actions/websites';
+import { connectDomainAction, publishVersionAction, registerDomainAction, subscribeWebsiteAction, verifyDomainAction } from '@/server/actions/websites';
+import { registrarFromEnv } from '@roi/integrations/registrar';
+import { domainPolicy } from '@roi/product-engine/domains';
+import { decideDomainPrice } from '@roi/shared-utils';
+import { rateLimit } from '@/server/rate-limit';
 
 export const metadata: Metadata = { title: 'Manage website' };
 
 /** Product 5 management (spec §12): preview, versions with rollback, publishing status, domain, leads, editor. */
-export default async function ManageWebsite({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string; unchanged?: string; edit?: string }> }) {
+export default async function ManageWebsite({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string; unchanged?: string; edit?: string; domain?: string }> }) {
   const { id } = await params;
   const sp = await searchParams;
   const c = await requireCustomer();
@@ -34,6 +38,24 @@ export default async function ManageWebsite({ params, searchParams }: { params: 
   const plan = product?.plans.find((p) => p.published && p.price);
   const input = (site.content as { input?: Record<string, unknown> }).input ?? {};
   const domain = site.domains[0];
+  // Domain search (spec §14): server-side quote with the ROI price rule; rate limited.
+  const registrar = registrarFromEnv();
+  let quote: null | { name: string; text: string; covered: boolean; ok: boolean; registerable: boolean } = null;
+  const wanted = (sp.domain ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (wanted && registrar && !domain) {
+    const rl = await rateLimit(`domain-search:${c.user.id}`, 30, 600);
+    if (!rl.ok) quote = { name: wanted, text: 'Too many searches — try again in a few minutes.', covered: false, ok: false, registerable: false };
+    else {
+      try {
+        const q = await registrar.search(wanted);
+        const dcs = decideDomainPrice(q, await domainPolicy(db()));
+        quote = !dcs.ok ? { name: wanted, text: dcs.message, covered: false, ok: false, registerable: false }
+          : { name: q.name, ok: true, covered: dcs.coveredByRoi, registerable: q.apiRegisterable, text: dcs.coveredByRoi ? `${q.name} is available and included with your subscription (${formatUsd(dcs.effectiveCents)}/year paid by ROI).` : `${q.name} is available at ${formatUsd(dcs.effectiveCents)}/year, paid by you (domains of $15/year or more).` };
+      } catch {
+        quote = { name: wanted, text: 'The registrar did not answer. Try again in a minute.', covered: false, ok: false, registerable: false };
+      }
+    }
+  }
   const ver = (domain?.verification ?? {}) as { txtName?: string; txtValue?: string; verifiedAt?: string };
   const hostTarget = process.env.ROI_SITE_HOST_TARGET ?? (site.hostingProvider === 'cloudflare-pages' ? `${(site.design as { projectName?: string }).projectName}.pages.dev` : 'sites.roictllc.com');
   return (
@@ -72,13 +94,35 @@ export default async function ManageWebsite({ params, searchParams }: { params: 
           </Card>
           <Card>
             <h2 className="font-display text-lg font-semibold">Your domain</h2>
+            {!domain && registrar && (
+              <div className="mt-3 space-y-3">
+                <form method="get" className="flex gap-2" role="search"><Input name="domain" aria-label="Search a new domain" placeholder="yourbusiness.com" defaultValue={wanted} /><button className="rounded-full border border-[var(--color-border)] px-4 text-sm font-semibold">Search</button></form>
+                {quote && <p className={`text-sm ${quote.ok ? '' : 'text-[var(--color-danger)]'}`}>{quote.text}</p>}
+                {quote?.ok && quote.covered && quote.registerable && subscribed && (
+                  <ActionForm action={registerDomainAction} className="space-y-2">
+                    <CsrfField /><input type="hidden" name="websiteId" value={site.id} /><input type="hidden" name="domain" value={quote.name} />
+                    <p className="text-xs text-[var(--color-muted)]">Registrant (the legal owner — you). WHOIS privacy and auto-renew are on.</p>
+                    <div className="grid grid-cols-2 gap-2"><Input name="firstName" placeholder="First name" required /><Input name="lastName" placeholder="Last name" required /></div>
+                    <Input name="organization" placeholder="Business name (optional)" defaultValue={site.name} />
+                    <Input name="address1" placeholder="Street address" required />
+                    <div className="grid grid-cols-3 gap-2"><Input name="city" placeholder="City" required /><Input name="state" placeholder="State" maxLength={2} required /><Input name="zip" placeholder="ZIP" required /></div>
+                    <Input name="phone" type="tel" placeholder="Phone" required />
+                    <label className="flex gap-2 text-xs"><input type="checkbox" name="registrantConsent" required /> I will be the registrant of this domain and accept the registry terms.</label>
+                    <SubmitButton size="sm" pendingText="Registering…">Register {quote.name}</SubmitButton>
+                  </ActionForm>
+                )}
+                {quote?.ok && quote.covered && !subscribed && <p className="text-xs text-[var(--color-muted)]">Subscribe first; the domain is then registered for you.</p>}
+                <p className="text-xs text-[var(--color-muted)]">Or connect a domain you already own:</p>
+              </div>
+            )}
             {!domain ? (
-              <ActionForm action={connectDomainAction} className="mt-3 space-y-3"><CsrfField /><input type="hidden" name="websiteId" value={site.id} /><Input name="domain" aria-label="Domain you own" placeholder="www.yourbusiness.com" required /><SubmitButton size="sm" variant="secondary">Connect a domain I own</SubmitButton><p className="text-xs text-[var(--color-muted)]">Buying a new domain through ROI opens with the registrar integration.</p></ActionForm>
+              <ActionForm action={connectDomainAction} className="mt-3 space-y-3"><CsrfField /><input type="hidden" name="websiteId" value={site.id} /><Input name="domain" aria-label="Domain you own" placeholder="www.yourbusiness.com" required /><SubmitButton size="sm" variant="secondary">Connect a domain I own</SubmitButton>{!registrar && <p className="text-xs text-[var(--color-muted)]">Buying a new domain through ROI opens when the registrar is connected.</p>}</ActionForm>
             ) : (
               <div className="mt-2 space-y-3 text-sm">
-                <p><strong>{domain.name}</strong> {ver.verifiedAt ? <Pill tone="success">Verified</Pill> : <Pill tone="warning">Waiting for DNS</Pill>}</p>
-                <Table head={['Type', 'Name', 'Value']} rows={[['TXT', ver.txtName ?? '', <code key="v" className="break-all text-xs">{ver.txtValue}</code>], ['CNAME', domain.name, hostTarget]]} />
-                {!ver.verifiedAt && <ActionForm action={verifyDomainAction}><CsrfField /><input type="hidden" name="domain" value={domain.name} /><SubmitButton size="sm" variant="secondary" pendingText="Checking DNS…">Verify</SubmitButton></ActionForm>}
+                <p><strong>{domain.name}</strong> {domain.status === 'REGISTERING' ? <Pill tone="info">Registering…</Pill> : domain.status === 'ACTIVE' ? <Pill tone="success">Registered{domain.coveredByRoi ? ' · paid by ROI' : ''}</Pill> : ver.verifiedAt ? <Pill tone="success">Verified</Pill> : <Pill tone="warning">Waiting for DNS</Pill>}</p>
+                {domain.external && <Table head={['Type', 'Name', 'Value']} rows={[['TXT', ver.txtName ?? '', <code key="v" className="break-all text-xs">{ver.txtValue}</code>], ['CNAME', domain.name, hostTarget]]} />}
+                {domain.expiresAt && <p className="text-xs text-[var(--color-muted)]">Renews {domain.expiresAt.toISOString().slice(0, 10)}{domain.coveredByRoi ? ' · included while your subscription is active' : ''}</p>}
+                {domain.external && !ver.verifiedAt && <ActionForm action={verifyDomainAction}><CsrfField /><input type="hidden" name="domain" value={domain.name} /><SubmitButton size="sm" variant="secondary" pendingText="Checking DNS…">Verify</SubmitButton></ActionForm>}
               </div>
             )}
           </Card>

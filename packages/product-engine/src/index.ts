@@ -12,3 +12,4 @@ export * from './jobs';
 export * from './ebook-jobs';
 export * from './websites';
 export * from './monitors';
+export * from './domains';

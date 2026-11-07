@@ -3,6 +3,7 @@ import { LOGO_FLOW_HANDLERS } from './logo-flows';
 import { EBOOK_HANDLERS } from './ebook-jobs';
 import { WEBSITE_HANDLERS } from './websites';
 import { MONITOR_HANDLERS } from './monitors';
+import { DOMAIN_HANDLERS } from './domains';
 import { log } from './queue';
 import { sendEmailFromWorker } from './notify';
 
@@ -48,6 +49,7 @@ export const JOB_HANDLERS: Record<string, Handler> = {
   ...EBOOK_HANDLERS,
   ...WEBSITE_HANDLERS,
   ...MONITOR_HANDLERS,
+  ...DOMAIN_HANDLERS,
   'housekeeping.auto-refund': autoRefundHandler,
 };
 
@@ -63,4 +65,5 @@ export const JOB_CONCURRENCY: Record<string, number> = {
   'monitor.ssl-domains': 1,
   'monitor.queue': 1,
   'billing.enforce': 1,
+  'domain.register': 1,
 };

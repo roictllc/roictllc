@@ -6,6 +6,9 @@ import { redirect } from 'next/navigation';
 import { schemas } from '@roi/validation';
 import { storageFromEnv } from '@roi/product-engine/storage';
 import { buildWebsiteVersion, pickHostingProvider } from '@roi/product-engine/websites';
+import { domainPolicy } from '@roi/product-engine/domains';
+import { registrarFromEnv } from '@roi/integrations/registrar';
+import { decideDomainPrice, formatUsd } from '@roi/shared-utils';
 import type { ActionState } from '@/components/action-form';
 import { assertCsrf, CsrfError } from '../csrf';
 import { requireCustomer } from '../customer';
@@ -175,4 +178,40 @@ export async function verifyDomainAction(_: ActionState, form: FormData): Promis
   }
   revalidatePath(`/dashboard/website/${site.id}`);
   return { ok: `Verified. ${detail}`.trim() };
+}
+
+/**
+ * Register a domain through ROI (spec §14). Domains under $15/year (the higher of first-year and renewal price) are
+ * included while the website subscription is active; the customer is the registrant (their contact details).
+ */
+export async function registerDomainAction(_: ActionState, form: FormData): Promise<ActionState> {
+  const bad = await guard(form);
+  if (bad) return { error: bad };
+  const c = await requireCustomer();
+  const site = await c.data.website.findUnique({ where: { id: g(form, 'websiteId') } });
+  if (!site) return { error: 'Website not found.' };
+  const sub = site.subscriptionId ? await db().subscription.findUnique({ where: { id: site.subscriptionId } }) : null;
+  if (!sub || !['ACTIVE', 'TRIALING'].includes(sub.status)) return { error: 'Start your website subscription first — included domains are part of it.' };
+  if (await c.data.domain.findFirst({ where: { websiteId: site.id, status: { in: ['ACTIVE', 'REGISTERING'] } } })) return { error: 'This website already has a domain.' };
+  const registrar = registrarFromEnv();
+  if (!registrar) return { error: 'Domain registration is awaiting configuration.' };
+  const name = g(form, 'domain').toLowerCase();
+  if (!HOST.test(name)) return { error: 'Invalid domain.' };
+  const rl = await rateLimit(`domain-register:${c.workspaceId}`, 5, 86_400);
+  if (!rl.ok) return { error: 'Too many registration attempts today.' };
+  const quote = await registrar.search(name);
+  const decision = decideDomainPrice(quote, await domainPolicy(db()));
+  if (!decision.ok) return { error: decision.message };
+  if (!quote.apiRegisterable) return { error: `${name} can only be registered manually. Contact support and we will help.` };
+  if (!decision.coveredByRoi) return { error: `${name} costs ${formatUsd(decision.effectiveCents)}/year, so you pay it in full. Paid domain checkout opens soon — or choose a domain under $15/year, which is included.` };
+  const phone = g(form, 'phone').replace(/[^\d+]/g, '');
+  const contact = { firstName: g(form, 'firstName'), lastName: g(form, 'lastName'), organization: g(form, 'organization') || undefined, email: c.user.email, phone: phone.startsWith('+') ? phone.replace(/^\+1/, '+1.') : `+1.${phone.replace(/^1/, '')}`, address1: g(form, 'address1'), city: g(form, 'city'), state: g(form, 'state').toUpperCase(), zip: g(form, 'zip'), country: 'US' };
+  if (!contact.firstName || !contact.lastName || !contact.address1 || !contact.city || !/^[A-Z]{2}$/.test(contact.state) || !/^\d{5}(-\d{4})?$/.test(contact.zip) || contact.phone.length < 12) return { error: 'Fill in the registrant contact (ICANN requires a real name, US address, ZIP and phone).' };
+  if (form.get('registrantConsent') !== 'on') return { error: 'Confirm that you will be the legal registrant.' };
+  if (await db().domain.findUnique({ where: { name } })) return { error: 'This domain is already being registered.' };
+  const d = await db().domain.create({ data: { name, workspaceId: c.workspaceId, websiteId: site.id, status: 'REGISTERING', registrar: registrar.name, coveredByRoi: true, external: false, verification: { quotedFirstYearCents: quote.firstYearCents, quotedRenewalCents: quote.renewalCents, quotedAt: new Date().toISOString() } } });
+  await db().automationJob.create({ data: { type: 'domain.register', lane: 'paid', priority: 15, workspaceId: c.workspaceId, payload: { domainId: d.id, contact }, idempotencyKey: `domain-register:${d.id}`, maxAttempts: 3 } });
+  await audit('domain.register_requested', { actorId: c.user.id, actorRole: 'CUSTOMER', targetType: 'Domain', targetId: name, data: { firstYearCents: quote.firstYearCents, renewalCents: quote.renewalCents, covered: true } });
+  revalidatePath(`/dashboard/website/${site.id}`);
+  return { ok: `Registering ${name}. This takes about a minute; DNS then needs a few minutes to a few hours.` };
 }
