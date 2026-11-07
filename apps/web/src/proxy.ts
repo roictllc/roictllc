@@ -13,11 +13,33 @@ function b64(bytes: Uint8Array) {
   return btoa(s);
 }
 
+function isAppHost(host: string) {
+  const app = (() => {
+    try {
+      return new URL(process.env.APP_URL || 'http://localhost').hostname.toLowerCase();
+    } catch {
+      return 'localhost';
+    }
+  })();
+  const vercel = [process.env.VERCEL_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL].filter(Boolean).map((h) => h!.toLowerCase());
+  return host === app || host === `www.${app}` || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app') || vercel.includes(host) || (process.env.ALLOWED_ORIGINS ?? '').split(',').map((h) => h.trim().replace(/^https?:\/\//, '')).includes(host);
+}
+
 export function proxy(request: NextRequest) {
   const https = (process.env.APP_URL || (process.env.VERCEL_URL ? 'https://' : '')).startsWith('https://');
   const sessionCookie = https ? '__Host-roi_session' : 'roi_session';
   const csrfCookie = https ? '__Host-roi_csrf' : 'roi_csrf';
   const { pathname, search } = request.nextUrl;
+
+  // Customer websites on their own domains (ROI multi-tenant host, spec Product 5): any Host that is not the app is
+  // served from the site's live bundle by /site-host. The app's CSP/cookies do not apply there.
+  const host = (request.headers.get('host') ?? '').toLowerCase().replace(/:\d+$/, '');
+  if (host && !isAppHost(host) && !pathname.startsWith('/_next/')) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/site-host/${host}${pathname}`;
+    return NextResponse.rewrite(url);
+  }
+  if (pathname.startsWith('/site-host/')) return new NextResponse('Not found', { status: 404 });
 
   if (PRIVATE.test(pathname) && !pathname.startsWith('/account/reset') && !request.cookies.get(sessionCookie)) {
     const url = request.nextUrl.clone();
@@ -37,11 +59,11 @@ export function proxy(request: NextRequest) {
     `img-src 'self' blob: data: https://assets.roictllc.com`,
     `font-src 'self'`,
     `connect-src 'self' https://*.r2.cloudflarestorage.com${dev ? ' ws:' : ''}`,
-    `frame-src ${turnstile} https://checkout.stripe.com`,
+    `frame-src 'self' ${turnstile} https://checkout.stripe.com`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self' https://checkout.stripe.com https://billing.stripe.com`,
-    `frame-ancestors 'none'`,
+    pathname.startsWith('/site-preview/') ? `frame-ancestors 'self'` : `frame-ancestors 'none'`,
     `manifest-src 'self'`,
     https ? 'upgrade-insecure-requests' : '',
   ].filter(Boolean).join('; ');
@@ -70,7 +92,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|llms.txt|fonts/).*)',
+      source: '/((?!_next/static|_next/image|fonts/).*)', // robots/sitemap/llms included: customer domains serve their own
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

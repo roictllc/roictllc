@@ -1,6 +1,7 @@
 import { HANDLERS, type Handler } from './handlers';
 import { LOGO_FLOW_HANDLERS } from './logo-flows';
 import { EBOOK_HANDLERS } from './ebook-jobs';
+import { WEBSITE_HANDLERS } from './websites';
 import { log } from './queue';
 import { sendEmailFromWorker } from './notify';
 
@@ -44,6 +45,7 @@ export const JOB_HANDLERS: Record<string, Handler> = {
   ...HANDLERS,
   ...LOGO_FLOW_HANDLERS,
   ...EBOOK_HANDLERS,
+  ...WEBSITE_HANDLERS,
   'housekeeping.auto-refund': autoRefundHandler,
 };
 

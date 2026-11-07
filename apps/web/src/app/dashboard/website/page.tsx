@@ -15,7 +15,7 @@ export default async function MyWebsite() {
     return (
       <>
         <PageHeader title="My website" />
-        <Card glow className="text-center"><p className="font-display text-xl font-semibold">You don’t have an ROI website yet</p><p className="mx-auto mt-2 max-w-lg text-[var(--color-muted)]">Get a fast, professional site with hosting, SSL, a lead inbox and version history. Domains under $15/year are included.</p><div className="mt-5"><ButtonLink href="/products/landing-page-hosting">See website plans</ButtonLink></div></Card>
+        <Card glow className="text-center"><p className="font-display text-xl font-semibold">You don’t have an ROI website yet</p><p className="mx-auto mt-2 max-w-lg text-[var(--color-muted)]">Get a fast, professional site with hosting, SSL, a lead inbox and version history. Domains under $15/year are included.</p><div className="mt-5"><ButtonLink href="/dashboard/create/landing-page-hosting">See website plans</ButtonLink></div></Card>
       </>
     );
   }
@@ -24,7 +24,7 @@ export default async function MyWebsite() {
       <PageHeader title="My website" intro="Live status, domain, SSL, uptime, deployments and leads." />
       {sites.map((s) => (
         <Card key={s.id} className="mb-6">
-          <div className="flex items-center justify-between"><h2 className="font-display text-xl font-semibold">{s.name}</h2><Pill tone={statusTone(s.status)}>{s.status}</Pill></div>
+          <div className="flex items-center justify-between"><h2 className="font-display text-xl font-semibold">{s.name}</h2><span className="flex items-center gap-3"><Pill tone={statusTone(s.status)}>{s.status}</Pill><ButtonLink href={`/dashboard/website/${s.id}`} size="sm" variant="secondary">Manage →</ButtonLink></span></div>
           <p className="mt-2 text-sm text-[var(--color-muted)]">{s.liveUrl ?? s.previewUrl ?? 'Not published yet'}{s.uptime[0] ? ` · last check ${s.uptime[0].ok ? 'up' : 'DOWN'} (${s.uptime[0].latencyMs} ms)` : ''}</p>
           <Table head={['Deployment', 'Status', 'Started', 'URL']} empty="No deployments yet." rows={s.deployments.map((d) => [d.provider, <Pill key="s" tone={statusTone(d.status)}>{d.status}</Pill>, d.startedAt.toISOString().slice(0, 16).replace('T', ' '), d.url ?? '—'])} />
         </Card>

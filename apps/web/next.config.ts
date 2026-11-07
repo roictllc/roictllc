@@ -11,10 +11,24 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
 ];
 
+// ROI's own security headers apply only to ROI hosts; customer domains served by the ROI host send their own
+// (a customer's site must never inherit ROI's HSTS includeSubDomains/preload).
+const appHostname = (() => {
+  try {
+    return new URL(process.env.APP_URL || 'http://localhost').hostname;
+  } catch {
+    return 'localhost';
+  }
+})();
+const reEsc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const APP_HOSTS = `(${[appHostname, `www.${appHostname}`, 'localhost', '127.0.0.1', ...[process.env.VERCEL_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL].filter(Boolean) as string[]].map(reEsc).join('|')}|.*\\.vercel\\.app)`;
+
 const config: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
   poweredByHeader: false,
+  // Customer sites use directory URLs (/services/x/); the app must not redirect them away from their canonical form.
+  skipTrailingSlashRedirect: true,
   reactStrictMode: true,
   transpilePackages: [
     '@roi/database', '@roi/shared-utils', '@roi/shared-types', '@roi/validation', '@roi/product-engine', '@roi/integrations',
@@ -25,7 +39,9 @@ const config: NextConfig = {
   images: { formats: ['image/avif', 'image/webp'] },
   async headers() {
     return [
-      { source: '/:path*', headers: securityHeaders },
+      { source: '/((?!site-preview/|site-host/).*)', has: [{ type: 'host', value: APP_HOSTS }], headers: securityHeaders },
+      // Customer-site previews are framed by the dashboard (same origin only); live customer sites send their own headers.
+      { source: '/site-preview/:path*', headers: [...securityHeaders.filter((h) => h.key !== 'X-Frame-Options'), { key: 'X-Frame-Options', value: 'SAMEORIGIN' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
       { source: '/(dashboard|admin|affiliate)/:path*', headers: [{ key: 'Cache-Control', value: 'no-store' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
     ];
