@@ -26,5 +26,11 @@ No AI engine can be forced to recommend a business. ROI improves how AI understa
 - **How do you track AI mentions?** For each tracked question we record whether the business is mentioned, its position, cited sources and sentiment, using official APIs where the provider allows it and logged manual checks by ROI staff otherwise. Every data point shows how and when it was collected.
 - **Does this replace SEO?** It builds on it. AI search reads the same web, so technical SEO, local listings and structured data matter even more. AI Visibility focuses on the parts AI assistants rely on most.
 
+## Tracking and reports (built)
+- **Tracked questions:** customers add up to 10 (free) questions written the way their customers ask.
+- **Mention checks:** only compliant sources. Staff enter manual checks in Control Center → AI Visibility (engine, date, mentioned, position, sentiment, cited sources, answer excerpt); one entry per question + engine + day, recorded with who entered it. Official-API checks arrive with client-supplied keys (Product 10 Part B).
+- **Dashboard:** score from the latest audit, 30-day mention rate with an 8-week trend, per-engine table (rate, average position, number of checks, data age), next best actions, questions with their latest result, report downloads.
+- **Monthly report:** on the 1st the worker queues one `ai-visibility.report` per workspace with tracked questions; the PDF covers score, mention rate and the change vs the previous month, per-engine results with dates, every question, next actions (claims-filtered) and an honest "how to read this" note. Customers can also create the current month's report (3 per day). Delivered to Products & downloads, by email and as a notification.
+
 ## Build status
-Free audit LIVE ✅ (packages/seo-engine, 29 tests). Tracked questions ✅. Staff manual entry + monthly report: next session.
+Audit ✅ · tracked questions ✅ · manual checks ✅ · dashboard ✅ · monthly report ✅ · tests ✅ (`tests/integration/ai-visibility-reports.test.ts`). Pending: per-engine official-API checks with client keys.

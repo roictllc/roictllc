@@ -4,6 +4,7 @@ import { EBOOK_HANDLERS } from './ebook-jobs';
 import { WEBSITE_HANDLERS } from './websites';
 import { MONITOR_HANDLERS } from './monitors';
 import { DOMAIN_HANDLERS } from './domains';
+import { AI_VISIBILITY_HANDLERS } from './ai-visibility';
 import { log } from './queue';
 import { sendEmailFromWorker } from './notify';
 
@@ -50,6 +51,7 @@ export const JOB_HANDLERS: Record<string, Handler> = {
   ...WEBSITE_HANDLERS,
   ...MONITOR_HANDLERS,
   ...DOMAIN_HANDLERS,
+  ...AI_VISIBILITY_HANDLERS,
   'housekeeping.auto-refund': autoRefundHandler,
 };
 

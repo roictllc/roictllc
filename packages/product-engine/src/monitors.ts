@@ -18,6 +18,7 @@ export const SCHEDULE: Array<{ type: string; key: () => string; everyMinutes: nu
   { type: 'monitor.queue', key: () => `${hourKey()}:${String(Math.floor(new Date().getUTCMinutes() / 5) * 5).padStart(2, '0')}`, everyMinutes: 5 },
   { type: 'billing.enforce', key: hourKey, everyMinutes: 60 },
   { type: 'monitor.ssl-domains', key: dayKey, everyMinutes: 1440 },
+  { type: 'ai-visibility.monthly-reports', key: () => new Date().toISOString().slice(0, 7), everyMinutes: 43_200 }, // first run each month
 ];
 
 /** Called by the worker every minute. */

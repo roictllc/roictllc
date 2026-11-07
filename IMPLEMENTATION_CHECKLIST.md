@@ -62,7 +62,7 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 - 🟠 P7 GEO: shingle gate exists; Census importer, location pages, NAP checks not built
 - ⏸ P9 Social Media Autopilot: moved to phase 2 by the owner (DECISIONS D-21). Engine package kept and tested (OAuth/PKCE, engagement model, Thompson sampling, claim filters); UI preserved on branch `phase2-social-baseline`.
 - 🟠 P10 Part A assistant engine ✅ (global KB); per-client KB upload + embeddable widget + Part B (client keys) not built
-- ✅ P11 AI Visibility free audit LIVE (7 categories, prioritized fixes, shareable report, email when configured); customer tracked questions ✅; staff manual-check entry UI + monthly report ⬜
+- ✅ P11 AI Visibility: free audit LIVE (7 categories, prioritized fixes, shareable report); tracked questions; staff manual-check entry (who/when, one per question+engine+day, cited sources, sentiment); customer dashboard with per-engine mention rate, average position, 8-week trend and data age; monthly PDF report built only from stored results (MoM change, next actions, claims filter) + on-demand report; monthly fan-out job — tests · ⬜ official-API checks per engine (client keys, Product 10 Part B)
 - ✅ Built-in assistant: retrieval (Postgres FTS), intents, permission-scoped read-only tools as the asking user, citations, logging, refusal
 
 ## Operations (§15–§22)
