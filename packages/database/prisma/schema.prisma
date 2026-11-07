@@ -569,7 +569,7 @@ model Product {
   kind                 ProductKind
   deliveryMode         DeliveryMode
   visibility           Visibility      @default(HIDDEN)
-  requiredIntegrations String[]
+  requiredIntegrations String[]        @default([])
   faq                  Json
   honesty              String?
   taxCode              String?
@@ -744,7 +744,7 @@ model Bundle {
   slug        String        @unique
   name        String
   description String?
-  planIds     String[]
+  planIds     String[]      @default([])
   amountCents Int
   interval    PriceInterval
   published   Boolean       @default(false)
@@ -1337,7 +1337,7 @@ model LogoFingerprint {
   label      String?
   phash      String
   dhash      String
-  huMoments  Float[]
+  huMoments  Float[]      @default([])
   layoutSig  String
   paletteSig String
   reservedAt DateTime?    @db.Timestamptz(3)
@@ -1387,7 +1387,7 @@ model EBook {
   category          EBookCategory            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   description       String
   language          String                   @default("en")
-  tags              String[]
+  tags              String[]                 @default([])
   priceCents        Int
   stripePriceId     String?                  @unique
   coverKey          String?
@@ -1892,7 +1892,7 @@ model AiMentionCheck {
   position       Int?
   sentiment      String?
   answer         String?
-  citedSources   String[]
+  citedSources   String[]          @default([])
   checkedAt      DateTime          @db.Timestamptz(3)
   enteredById    String?
   idempotencyKey String            @unique
@@ -1915,7 +1915,7 @@ model SocialAccount {
   accessTokenEnc     String
   refreshTokenEnc    String?
   tokenExpiresAt     DateTime?         @db.Timestamptz(3)
-  scopes             String[]
+  scopes             String[]          @default([])
   status             String            @default("CONNECTED")
   postingMode        PostingMode       @default(APPROVE_FIRST)
   autopilot          Boolean           @default(false)
@@ -1940,10 +1940,10 @@ model SocialPlan {
   priceCents      Int
   interval        PriceInterval        @default(MONTH)
   postsPerMonth   Int
-  platforms       SocialPlatform[]
+  platforms       SocialPlatform[]     @default([])
   imageCount      Int
   analyticsDepth  String
-  approvalOptions String[]
+  approvalOptions String[]             @default([])
   published       Boolean              @default(false)
   productPlanId   String?
   createdAt       DateTime             @default(now()) @db.Timestamptz(3)
@@ -1995,8 +1995,8 @@ model SocialPost {
   socialAccountId String
   socialAccount   SocialAccount              @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
   caption         String
-  hashtags        String[]
-  mediaKeys       String[]
+  hashtags        String[]                   @default([])
+  mediaKeys       String[]                   @default([])
   status          SocialPostStatus           @default(DRAFT)
   scheduledFor    DateTime?                  @db.Timestamptz(3)
   publishedAt     DateTime?                  @db.Timestamptz(3)
@@ -2058,7 +2058,7 @@ model HashtagSet {
   workspaceId String?
   industry    String?
   name        String
-  tags        String[]
+  tags        String[] @default([])
   performance Json?
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
@@ -2079,8 +2079,8 @@ model BrandKit {
   industry      String
   location      String?
   offers        Json?
-  doNotSay      String[]
-  photoAssetIds String[]
+  doNotSay      String[]          @default([])
+  photoAssetIds String[]          @default([])
   createdAt     DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime          @updatedAt @db.Timestamptz(3)
 
@@ -2210,7 +2210,7 @@ model KnowledgeChunk {
   ordinal     Int
   heading     String?
   content     String
-  embedding   Float[]
+  embedding   Float[]           @default([])
   createdAt   DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
 
@@ -2275,7 +2275,7 @@ model ClientAiConnection {
   keyEnc            String
   keyLast4          String
   monthlyLimitCents Int?
-  features          String[]
+  features          String[]          @default([])
   killSwitch        Boolean           @default(false)
   status            String            @default("ACTIVE")
   createdAt         DateTime          @default(now()) @db.Timestamptz(3)
@@ -2465,7 +2465,7 @@ model EmailSubscriber {
   name             String?
   status           SubscriberStatus @default(SUBSCRIBED)
   workspaceId      String?
-  tags             String[]
+  tags             String[]         @default([])
   unsubscribeToken String           @unique
   createdAt        DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
@@ -2609,9 +2609,9 @@ model Integration {
   key            String            @unique
   name           String
   status         IntegrationStatus @default(AWAITING_CONFIGURATION)
-  requiredEnv    String[]
-  missingEnv     String[]
-  unlocks        String[]
+  requiredEnv    String[]          @default([])
+  missingEnv     String[]          @default([])
+  unlocks        String[]          @default([])
   ownerStep      String
   lastCheckAt    DateTime?         @db.Timestamptz(3)
   lastError      String?

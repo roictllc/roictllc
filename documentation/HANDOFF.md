@@ -6,7 +6,7 @@ Session 1 ended with the platform ready for a private preview on Vercel + Neon (
 See `IMPLEMENTATION_CHECKLIST.md` (✅ items) and `documentation/FINAL_REPORT.md` (test evidence).
 
 ## Next, in spec build order
-1. ~~P1–P3 customer flows~~ ✅ done (upload → preview → pay → deliver). Remaining here: **P4** e-book upload form + preview/stamp jobs, **P5** publish pipeline (Cloudflare Pages Direct Upload `HostingProvider`, versions, rollback, editor). P8 signature-suite order flow ✅ done.
+1. ~~P1–P3 customer flows~~ ✅ done (upload → preview → pay → deliver). Remaining here: ~~P4~~ ✅ done, **P5** publish pipeline (Cloudflare Pages Direct Upload `HostingProvider`, versions, rollback, editor). P8 signature-suite order flow ✅ done.
 2. ~~Pre-payment preview flows~~ ✅ done for P1–P3 (verified email, Turnstile, daily limits, signed no-store preview URLs).
 3. **Registrar adapters** (Porkbun, Namecheap, Dynadot) behind `RegistrarProvider` + domain search UI using `decideDomainPrice`.
 4. **P6 crawler** (multi-page, Lighthouse via Chromium, findings, auto-fix on ROI sites, monthly PDF) and **P7** (Census Gazetteer importer `seed/import-us-places.ts`, location pages through the shingle gate, NAP checks).

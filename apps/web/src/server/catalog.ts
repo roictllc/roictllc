@@ -18,7 +18,8 @@ export const listPublicProducts = cache(async () => {
     orderBy: [{ sortOrder: 'asc' }],
     include: {
       category: true,
-      plans: { where: { archivedAt: null }, orderBy: { sortOrder: 'asc' }, include: { prices: true, features: { orderBy: { sortOrder: 'asc' } } } },
+      // Per-book plans (book-<id>) are sold from the e-book pages, not listed as product plans.
+      plans: { where: { archivedAt: null, NOT: { slug: { startsWith: 'book-' } } }, orderBy: { sortOrder: 'asc' }, include: { prices: true, features: { orderBy: { sortOrder: 'asc' } } } },
     },
   });
   return rows.map((p) => ({

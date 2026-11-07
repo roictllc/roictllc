@@ -46,7 +46,7 @@ export async function suggestChapter1(buf: Buffer, scanPages = 40) {
   }
 }
 
-export async function renderPreviewPages(buf: Buffer, chapter1StartPage: number, count = 3, width = 900) {
+export async function renderPreviewPages(buf: Buffer, chapter1StartPage: number, count = 3, width = 900, opts: { watermark?: boolean } = {}) {
   const { pages } = await validatePdf(buf);
   const first = Math.min(Math.max(1, chapter1StartPage), pages);
   const last = Math.min(pages, first + count - 1);
@@ -61,7 +61,7 @@ export async function renderPreviewPages(buf: Buffer, chapter1StartPage: number,
       const img = await readFile(path.join(dir, name));
       const m = await sharp(img).metadata();
       const wm = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${m.width}" height="${m.height}"><defs><pattern id="p" width="320" height="200" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)"><text x="0" y="100" font-family="sans-serif" font-size="44" font-weight="700" fill="rgba(123,63,255,0.16)">PREVIEW · ROI</text></pattern></defs><rect width="100%" height="100%" fill="url(#p)"/></svg>`);
-      out.push({ pageNumber: first + i, png: await sharp(img).composite([{ input: wm }]).png().toBuffer() });
+      out.push({ pageNumber: first + i, png: opts.watermark === false ? await sharp(img).png().toBuffer() : await sharp(img).composite([{ input: wm }]).png().toBuffer() });
     }
     return out;
   } finally {

@@ -4,6 +4,8 @@ import { db } from '@/server/db';
 import { audit } from '@/server/audit';
 import { presignGet, storageConfigured } from '@/server/storage';
 import { storageFromEnv } from '@roi/product-engine/storage';
+import { registerEbookDownload } from '@roi/product-engine/ebook-plan';
+import { requestMeta } from '@/server/request';
 
 /** Paid downloads (spec §6, §10): ownership check → short-lived signed URL. Previews never come through here. */
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +20,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   // Files of an item still waiting for a manager's quality approval are not released yet (spec §10).
   const isStaff = s.user.role !== 'CUSTOMER';
   if (f.orderItem && f.orderItem.status !== 'COMPLETED' && !isStaff) return new Response('Your files are still being checked', { status: 409 });
+  if (f.kind === 'ebook-pdf' && !isStaff) {
+    const meta = await requestMeta();
+    const r = await registerEbookDownload(db(), f.storageKey, { ip: meta.ip, userAgent: meta.userAgent });
+    if (!r.ok) return new Response(`You reached the download limit for this book (${r.limit}). Contact support if you need another copy.`, { status: 429 });
+  }
   await audit('file.download', { actorId: s.user.id, actorRole: s.user.role, targetType: 'GeneratedDeliverable', targetId: f.id });
   if (storageConfigured()) return Response.redirect(await presignGet(process.env.R2_BUCKET_PRIVATE!, f.storageKey, 300, f.fileName), 302);
   // Development only: local storage (refused in production by storageFromEnv).

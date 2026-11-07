@@ -1,5 +1,6 @@
 import { HANDLERS, type Handler } from './handlers';
 import { LOGO_FLOW_HANDLERS } from './logo-flows';
+import { EBOOK_HANDLERS } from './ebook-jobs';
 import { log } from './queue';
 import { sendEmailFromWorker } from './notify';
 
@@ -42,6 +43,7 @@ export const autoRefundHandler: Handler = async (ctx) => {
 export const JOB_HANDLERS: Record<string, Handler> = {
   ...HANDLERS,
   ...LOGO_FLOW_HANDLERS,
+  ...EBOOK_HANDLERS,
   'housekeeping.auto-refund': autoRefundHandler,
 };
 
@@ -52,4 +54,5 @@ export const JOB_CONCURRENCY: Record<string, number> = {
   'preview.logo-revival': 1,
   'preview.animated-gif-logo': 2,
   'preview.logo-generator': 2,
+  'ebook.ingest': 1,
 };

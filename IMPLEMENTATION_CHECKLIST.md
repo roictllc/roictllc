@@ -4,6 +4,7 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 
 ## Foundation (§4, §5, §23)
 - ✅ Monorepo (apps/web, apps/worker, 14 packages, infrastructure, documentation)
+- ✅ Scalar lists default to empty arrays (migration `20261107000000_list_defaults`, found by the e-book tests)
 - ✅ PostgreSQL schema: 137 models, snake_case tables, integer cents, timestamptz, FK indexes, soft delete — baseline migration + platform guards (D-12)
 - ✅ Additive-only migration applier with Prisma bookkeeping; destructive SQL refused
 - ✅ `npm run db:check` (OK/FAILED, no credentials printed) · ✅ `/api/health` (DB, queue, worker heartbeat, integrations)
@@ -55,7 +56,7 @@ Legend: ⏸ moved to phase 2 by the owner · ✅ built + automated test passes �
 - ✅ P1 Animated GIF Logo: upload intake (scan + re-encode), 10 styles, cached watermarked 480 px preview job, paid render (1920×1080 GIF, ≤1 MB email GIF, PNG fallback, 10.0 s MP4), ffprobe QC, watermark present in previews / absent in paid files, delivery email, 24 h auto-refund rule — integration tests on real files; customer pages verified in a browser · 🟡 live use needs VPS worker + R2 + Stripe
 - ✅ P2 Logo Revival: engine (classify, 4×, sharpness metric, SSIM-gated traced SVG), 10 s 540p watermarked preview video, 1080p clean delivery, manager approval hold, 3 previews/day — tests on real files · 🟠 ONNX super-resolution model optional (Lanczos fallback per spec)
 - ✅ P3 Logo Generator: 3 screened concepts per brief (pool = all ROI marks + 36 seeded reference motifs), similarity report + name check, ≤640 px forensic-tagged previews, Basic/Professional/Premium packages, sold marks reserved — tests on real files incl. ZIP contents
-- ✅ P4 E-book pipeline (validation, active-content rejection, Chapter-1 detection, 3 watermarked image pages, buyer-stamped copy) — 🟠 upload UI + handler not wired
+- ✅ P4 E-Book Library: staff upload straight to storage (presigned PUT, 200 MB), rights attestation, processing job (validation, active-content rejection, ClamAV when configured, page count, Chapter-1 detection, cover, exactly N watermarked preview images), editor (re-render, publish checks, margin-guarded per-book price synced to Stripe, buyers + download history), audited source access for staff only, public catalog with search + categories + Book schema, signed sample-page URLs, buyer-stamped copy (footer + metadata) with download limit — tests on real PDFs; browser-verified
 - ✅ P5 Site generator (22 industry packs, quality gate, ≤5 s, uniqueness across 100 sites) — 🟠 publish pipeline (Cloudflare Pages) + editor/rollback not built; contact-form endpoint ✅
 - 🟠 P6 Managed SEO: SSRF-safe fetch + AI-readiness checks exist; multi-page crawler, Lighthouse, reports not built
 - 🟠 P7 GEO: shingle gate exists; Census importer, location pages, NAP checks not built

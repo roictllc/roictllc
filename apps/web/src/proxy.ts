@@ -36,7 +36,7 @@ export function proxy(request: NextRequest) {
     `style-src-attr 'unsafe-inline'`,
     `img-src 'self' blob: data: https://assets.roictllc.com`,
     `font-src 'self'`,
-    `connect-src 'self'${dev ? ' ws:' : ''}`,
+    `connect-src 'self' https://*.r2.cloudflarestorage.com${dev ? ' ws:' : ''}`,
     `frame-src ${turnstile} https://checkout.stripe.com`,
     `object-src 'none'`,
     `base-uri 'self'`,

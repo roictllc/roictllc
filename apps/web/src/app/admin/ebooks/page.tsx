@@ -1,5 +1,6 @@
+import Link from 'next/link';
 import { formatUsd } from '@roi/shared-utils';
-import { Alert, PageHeader, Pill, statusTone, Table } from '@/components/ui';
+import { Alert, ButtonLink, PageHeader, Pill, statusTone, Table } from '@/components/ui';
 import { db } from '@/server/db';
 import { requireUser } from '@/server/session';
 import { assertCan } from '@/server/authz';
@@ -13,10 +14,10 @@ export default async function EbooksAdmin() {
   const r2 = await db().integration.findUnique({ where: { key: 'r2' } });
   return (
     <>
-      <PageHeader title="E-books" intro="Full book files are visible only to admins, PMs and managers (every access is audited). Customers see the catalog and a 3-page preview of Chapter 1." />
+      <PageHeader title="E-books" intro="Full book files are visible only to admins, PMs and managers (every access is audited). Customers see the catalog and a 3-page preview of Chapter 1." actions={<ButtonLink href="/admin/ebooks/new" size="sm">Add a book</ButtonLink>} />
       {r2?.status !== 'CONNECTED' && <div className="mb-6"><Alert tone="warning" title="Uploads need file storage">Connect Cloudflare R2 in Integrations to upload book files. Each upload requires a rights attestation.</Alert></div>}
       <Table head={['Title', 'Author', 'Category', 'Price', 'Pages', 'Chapter 1 starts', 'Sales', 'Status']} empty="No books yet."
-        rows={books.map((b) => [b.title, b.author, b.category.name, formatUsd(b.priceCents), b.pageCount ?? '—', b.chapter1StartPage, b._count.purchases, <Pill key="s" tone={statusTone(b.status)}>{b.status}</Pill>])} />
+        rows={books.map((b) => [<Link key="t" href={`/admin/ebooks/${b.id}`} className="font-semibold text-[var(--color-primary)]">{b.title}</Link>, b.author, b.category.name, formatUsd(b.priceCents), b.pageCount ?? '—', b.chapter1StartPage, b._count.purchases, <Pill key="s" tone={statusTone(b.status)}>{b.status}</Pill>])} />
     </>
   );
 }

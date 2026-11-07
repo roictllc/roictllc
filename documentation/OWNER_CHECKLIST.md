@@ -17,3 +17,9 @@ Everything else is built and tested. Each line flips to **connected** in `/admin
 
 ## Phase 2 (not needed now)
 Social Media Autopilot was moved to phase 2 (DECISIONS D-21). When you restart it: create a **Meta** app (Business Verification + App Review), a **TikTok** app (Content Posting API audit) and an **X** app with API credits. These reviews take weeks, so start them a month before you want to launch the social product.
+
+## R2 CORS rule (needed for e-book uploads)
+In Cloudflare → R2 → your private bucket → Settings → CORS policy, add:
+```json
+[{ "AllowedOrigins": ["https://YOUR-SITE-DOMAIN"], "AllowedMethods": ["PUT"], "AllowedHeaders": ["content-type"], "MaxAgeSeconds": 3600 }]
+```
