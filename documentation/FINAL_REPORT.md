@@ -1,6 +1,13 @@
-# Final report: session 1 (spec v4)
+# Final report (spec v4) — updated 2026-11-07
 
 Date: 2026-11-06 · Repository: `roictllc/roictllc` (branch `main`)
+
+## Session 2 additions (2026-11-07)
+- **Owner decision:** Social Media Autopilot moved to phase 2 (D-21); removed from the product, kept dormant in code, full UI on branch `phase2-social-baseline`.
+- **Customer flows that now work end to end** (upload/brief → free watermarked preview → pay → files, emails, failure → 24 h auto-refund): Animated GIF Logo, Logo Revival, Logo Generator, Email Signature Suite, E-Book Library (staff upload → processing → catalog → stamped copies), Website + Hosting (builder, versions, preview, publish/rollback, Cloudflare Pages or ROI host, own-domain verification, Porkbun domain registration under the $15 rule).
+- **AI Visibility:** staff manual checks, per-engine dashboard with data age, monthly PDF reports.
+- **Operations:** monitoring jobs (uptime, SSL/domain expiry, queue health), billing enforcement (grace → suspended → restored), CI that runs the real Prisma migrate/seed/drift check.
+- **Bugs found and fixed:** assistant crash in new Chrome, React 19 form reset wiping user input, 404 page without CSP nonce, scalar-list columns without defaults (migration `20261107000000_list_defaults`), customer sites inheriting ROI security headers, two flaky/isolation test issues.
 
 ## Outcome
 The ROI platform foundation, public site, customer dashboard, staff admin console, commerce core and the product engines are built and tested. The platform is ready to run as a **private preview** on Vercel + Neon. Checkout stays disabled and every product that needs an outside service shows `AWAITING_CONFIGURATION` / "coming soon" until the owner connects it. Nothing is faked.
@@ -9,7 +16,7 @@ The ROI platform foundation, public site, customer dashboard, staff admin consol
 
 | Check | Result |
 |---|---|
-| Unit + integration tests (local, PostgreSQL 16) | **157 / 157 passed**, 12 files, 227 s |
+| Unit + integration tests (local, PostgreSQL 16) | **183 / 183 passed**, 19 files |
 | GitHub CI on `main` (run 42304682127) | **green**: test, npm audit, CodeQL, gitleaks |
 | Real Prisma engine: `prisma migrate deploy` on an empty DB | both migrations applied |
 | Seed run twice (idempotency) | 1st: created admin + catalog; 2nd: `SEED: OK {}` (no changes) |
@@ -39,15 +46,14 @@ Step-by-step: `documentation/OWNER_CHECKLIST.md`. Social Media Autopilot (and it
 
 ## Not finished yet
 The build order for the remaining work is in `documentation/HANDOFF.md`. In short:
-- Worker handlers and pre-payment preview flows for products 2–4.
-- Website publishing and the website editor.
-- Registrar adapters.
-- The SEO crawler and the location-page generator.
-- Per-client assistant knowledge and the embeddable widget.
-- Staff editors: tickets, campaigns and payouts.
-- Sentry and uptime checks.
-- The Playwright E2E suite.
+- **Managed SEO (P6):** multi-page crawler, Lighthouse, fix list, monthly PDF, auto-fixes on ROI sites.
+- **GEO (P7):** US place database importer, location pages through the quality gate, NAP checks.
+- **AI Business Integration (P10):** per-client knowledge upload + embeddable widget; client-key AI features (also enables API-based AI Visibility checks).
+- **Domains:** Stripe checkout for domains of $15/year or more, renewal invoices and notices, Namecheap/Dynadot adapters.
+- **Websites:** generated OG images, image uploads in the editor.
+- **Staff editors:** support ticket threads, email campaigns + unsubscribe center, affiliate payout approvals, manager assignment, read-only customer preview.
+- **Ops:** Sentry, Lighthouse CI budgets, Playwright E2E suite, IndexNow, theme toggle.
 
-Before taking real customers, the platform should move to a VPS (Docker Compose + Caddy), so that the worker, FFmpeg and live updates run all the time.
+Before taking real customers, the platform should move to a VPS (Docker Compose + Caddy), so that the worker, FFmpeg, monitoring and the ROI website host run all the time.
 
-Line counts in `IMPLEMENTATION_CHECKLIST.md`: ✅ 48 · 🟡 5 · 🟠 15 · ⬜ 8.
+Line counts in `IMPLEMENTATION_CHECKLIST.md`: ✅ 50 · 🟡 6 · 🟠 12 · ⬜ 7 · ⏸ 2 (phase 2).
